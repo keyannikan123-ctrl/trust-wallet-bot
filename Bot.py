@@ -1,3 +1,4 @@
+
 # Trust Wallet Bot
 # Safe monitoring prototype
 # BNB Smart Chain
@@ -22,6 +23,7 @@ totals = {
     "Pay Reward": 0.0,
 }
 
+
 def show_menu():
     print("\n==========================")
     print("     TRUST WALLET BOT")
@@ -31,38 +33,55 @@ def show_menu():
     print("3. Pay Reward")
     print("0. Exit")
 
+
 def check_gift(left_has_referrals, right_has_referrals):
     if left_has_referrals and right_has_referrals:
         return False
-    return None  # Real referral status is not connected.
+    return None
+
 
 def check_limit(section):
     return totals[section] < LIMITS[section]
 
-while True:
-    show_menu()
-    choice = input("Choose an option: ").strip()
 
+def show_status(section):
+    print("\n---", section, "Status ---")
+    print("Current total:", totals[section], "USD")
+    print("Limit:", LIMITS[section], "USD")
+    print("Monitoring only: no transaction sent.")
+
+
+def handle_option(section):
+    print("\n", section, "selected.")
+
+    if not check_limit(section):
+        print(section, "limit reached. Stopped.")
+        return
+
+    show_status(section)
+
+
+def main():
     sections = {
         "1": "Gift",
         "2": "Distribute",
         "3": "Pay Reward",
     }
 
-    if choice in sections:
-        section = sections[choice]
+    while True:
+        show_menu()
+        choice = input("Choose an option: ").strip()
 
-        if not check_limit(section):
-            print(section, "limit reached. Stopped.")
+        if choice in sections:
+            handle_option(sections[choice])
+
+        elif choice == "0":
+            print("Goodbye!")
+            break
+
         else:
-            print(section, "selected.")
-            print("Current total:", totals[section], "USD")
-            print("Limit:", LIMITS[section], "USD")
-            print("Monitoring only: no transaction sent.")
+            print("Invalid option. Try again.")
 
-    elif choice == "0":
-        print("Goodbye!")
-        break
 
-    else:
-        print("Invalid option.")
+if __name__ == "__main__":
+    main()
