@@ -344,4 +344,5 @@ if __name__ == "__main__":
         main()
     except (EOFError, KeyboardInterrupt):
         print("\nProgram stopped safely.")
-    except Exception as exc
+    except Exception as exc:
+    
