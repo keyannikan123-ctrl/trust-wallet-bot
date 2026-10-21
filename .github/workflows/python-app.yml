@@ -1,16 +1,15 @@
-name: Python application
+name: BNB Network Connection Test
 
 on:
+  workflow_dispatch:
   push:
-    branches: ["main"]
-  pull_request:
     branches: ["main"]
 
 permissions:
   contents: read
 
 jobs:
-  build:
+  network-test:
     runs-on: ubuntu-latest
 
     steps:
@@ -24,3 +23,27 @@ jobs:
 
       - name: Check Python syntax
         run: python -m py_compile Bot.py
+
+      - name: Test BNB Smart Chain connection
+        run: |
+          python - <<'PY'
+          import json
+          import urllib.request
+          import urllib.error
+
+          rpc_urls = [
+              "https://bsc-dataseed.bnbchain.org/",
+              "https://bsc-dataseed1.bnbchain.org/",
+              "https://bsc-dataseed2.bnbchain.org/"
+          ]
+
+          methods = [
+              ("eth_chainId", []),
+              ("eth_blockNumber", [])
+          ]
+
+          connected = False
+
+          for url in rpc_urls:
+              try:
+                  print("Testing
