@@ -82,7 +82,6 @@ def rpc(method, params=None):
 
 def read_call(address, selector, arguments=""):
     data = "0x" + selector + arguments
-
     return rpc(
         "eth_call",
         [{"to": address, "data": data}, "latest"],
@@ -95,7 +94,6 @@ def decode_string(result):
 
     raw = bytes.fromhex(result[2:])
 
-    # Decode standard ABI dynamic strings.
     if len(raw) >= 64:
         offset = int.from_bytes(raw[:32], "big")
 
@@ -103,7 +101,6 @@ def decode_string(result):
             size = int.from_bytes(
                 raw[offset:offset + 32], "big"
             )
-
             start = offset + 32
             end = start + size
 
@@ -113,7 +110,6 @@ def decode_string(result):
                 except UnicodeDecodeError:
                     pass
 
-    # Some tokens return bytes32.
     try:
         return raw.rstrip(b"\x00").decode("utf-8")
     except UnicodeDecodeError:
@@ -129,7 +125,7 @@ def contract_report(address, title):
 
         if not code or code == "0x":
             print("Contract code: NOT FOUND")
-            record(f"{title}: no contract code found")
+            record(f"{title}: contract code not found")
             return False
 
         print("Contract code: FOUND")
@@ -178,32 +174,4 @@ def check_network():
 
         print("Chain ID:", chain_id)
         print("Latest block:", block_number)
-        print("RPC: CONNECTED")
-        print(
-            "Expected network:",
-            "YES" if chain_id == CHAIN_ID_EXPECTED else "NO",
-        )
-
-        if chain_id != CHAIN_ID_EXPECTED:
-            print("WARNING: Unexpected network. Stop here.")
-            record("Network check failed: unexpected chain")
-            return False
-
-        print("Network check successful.")
-        record("BNB Smart Chain connection successful")
-        return True
-
-    except Exception as exc:
-        print("Network error:", exc)
-        record(f"Network check failed: {exc}")
-        return False
-
-
-def check_all_contracts():
-    print("\n===================================")
-    print(" CONTRACT AND TOKEN DIAGNOSTICS")
-    print("===================================")
-
-    contract_report(
-        GIFT_DISTRIBUTE_CONTRACT,
-        "GIFT /
+        print("RPC
