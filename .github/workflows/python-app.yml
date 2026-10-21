@@ -24,26 +24,5 @@ jobs:
       - name: Check Python syntax
         run: python -m py_compile Bot.py
 
-      - name: Test BNB Smart Chain connection
-        run: |
-          python - <<'PY'
-          import json
-          import urllib.request
-          import urllib.error
-
-          rpc_urls = [
-              "https://bsc-dataseed.bnbchain.org/",
-              "https://bsc-dataseed1.bnbchain.org/",
-              "https://bsc-dataseed2.bnbchain.org/"
-          ]
-
-          methods = [
-              ("eth_chainId", []),
-              ("eth_blockNumber", [])
-          ]
-
-          connected = False
-
-          for url in rpc_urls:
-              try:
-                  print("Testing
+      - name: Test BNB connection
+        run: python -c "import json,urllib.request; u='https://bsc-dataseed.bnbchain.org/'; d=json.dumps({'jsonrpc':'2.0','method':'eth_chainId','params':[],'id':1}).encode(); r=urllib.request.Request(u,data=d,headers={'Content-Type':'application/json'}); x=json.loads(urllib.request.urlopen(r,timeout=15).read()); print('Chain ID:',int(x['result'],16)); assert int(x['result'],16)==56,'Wrong network'; print('BNB connection successful')"
