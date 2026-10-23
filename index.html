@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Trust Wallet Bot</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f3f5f8;
+      text-align: center;
+      padding: 30px 15px;
+      color: #222;
+    }
+    main {
+      max-width: 420px;
+      margin: 30px auto;
+      padding: 24px;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 3px 15px #0001;
+    }
+    button {
+      background: #246bfe;
+      color: white;
+      border: 0;
+      padding: 13px 20px;
+      border-radius: 9px;
+      font-size: 16px;
+      margin: 8px;
+    }
+    #status {
+      overflow-wrap: anywhere;
+      line-height: 1.8;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h2>Trust Wallet Bot</h2>
+    <p>BNB Smart Chain — اتصال آزمایشی</p>
+    <button id="connect">اتصال کیف پول</button>
+    <p id="status">کیف پول هنوز وصل نشده است.</p>
+    <p>این نسخه فقط برای آزمایش اتصال است و هیچ تراکنشی انجام نمی‌دهد.</p>
+  </main>
+
+  <script>
+    const button = document.getElementById("connect");
+    const status = document.getElementById("status");
+
+    button.addEventListener("click", async () => {
+      if (!window.ethereum) {
+        status.textContent =
+          "کیف پول در این مرورگر شناسایی نشد. صفحه را در مرورگر DApp تراست‌ولت باز کن.";
+        return;
+      }
+
+      try {
+        const accounts = await window.ethereum.request({
+          method: "eth_requestAccounts"
+        });
+
+        status.textContent =
+          "کیف پول وصل شد: " + accounts[0] +
+          " — این نسخه فقط آزمایشی است.";
+      } catch (error) {
+        status.textContent = "اتصال لغو شد یا موفق نشد.";
+      }
+    });
+  </script>
+</body>
+</html>
