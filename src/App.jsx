@@ -6,17 +6,51 @@ import {
 } from '@reown/appkit/react';
 
 import { useBalance } from 'wagmi';
+import { formatUnits } from 'viem';
+
+const tokens = [
+  {
+    name: 'USDT',
+    address: '0x55d398326f99059fF775485246999027B3197955',
+    decimals: 18
+  },
+  {
+    name: 'SGT',
+    address: '0x227c706300ad4df617358e51de443c6dc466353e',
+    decimals: 18
+  }
+];
+
+function TokenBalance({ token, address }) {
+  const { data, isLoading, error } = useBalance({
+    address,
+    token: token.address,
+    chainId: 56,
+    query: {
+      enabled: Boolean(address)
+    }
+  });
+
+  return (
+    <p>
+      {token.name}: {' '}
+      {isLoading
+        ? 'در حال دریافت...'
+        : error
+          ? 'خطا در دریافت'
+          : data
+            ? formatUnits(data.value, token.decimals)
+            : '0'}
+    </p>
+  );
+}
 
 export default function App() {
   const { open } = useAppKit();
   const { address, isConnected } = useAppKitAccount();
   const { chainId } = useAppKitNetwork();
 
-  const {
-    data: balance,
-    isLoading,
-    error
-  } = useBalance({
+  const { data: balance, isLoading, error } = useBalance({
     address,
     chainId: 56,
     query: {
@@ -37,29 +71,28 @@ export default function App() {
       {isConnected && (
         <section>
           <h3>اطلاعات کیف پول</h3>
-
           <p>وضعیت: متصل ✅</p>
-
           <p>آدرس کیف پول:</p>
           <p>{address}</p>
-
           <p>شناسه شبکه: {chainId}</p>
 
           <hr />
 
-          <h3>موجودی کیف پول</h3>
+          <h3>موجودی دارایی‌ها</h3>
 
-          <p>موجودی BNB:</p>
+          <p>BNB:</p>
 
-          {isLoading && <p>در حال دریافت موجودی...</p>}
+          {isLoading && <p>در حال دریافت...</p>}
+          {balance && <p>{balance.formatted} BNB</p>}
+          {error && <p>خطا در دریافت BNB</p>}
 
-          {balance && (
-            <p>{balance.formatted} BNB</p>
-          )}
-
-          {error && (
-            <p>دریافت موجودی ناموفق بود.</p>
-          )}
+          {tokens.map((token) => (
+            <TokenBalance
+              key={token.name}
+              token={token}
+              address={address}
+            />
+          ))}
         </section>
       )}
 
