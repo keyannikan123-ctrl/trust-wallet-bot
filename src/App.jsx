@@ -14,9 +14,7 @@ import {
 import { formatUnits } from 'viem';
 
 const BANK = '0x7a4f5d605e88831e3eb3f9630029ff008d00e4d0';
-
 const SGT = '0x227c706300ad4df617358e51de443c6dc466353e';
-
 const USDT = '0x55d398326f99059ff775485246999027b3197955';
 
 const bankABI = [
@@ -99,7 +97,6 @@ const bankABI = [
   }
 ];
 
-// خواندن خروجی قرارداد، چه به شکل آرایه و چه شیء
 function getField(data, name, index) {
   if (!data) return undefined;
   return data[name] ?? data[index];
@@ -153,7 +150,6 @@ export default function App() {
 
   const correctNetwork = Number(chainId) === 56;
 
-  // موجودی BNB
   const {
     data: bnb,
     isLoading: bnbLoading,
@@ -166,7 +162,7 @@ export default function App() {
     }
   });
 
-  // اطلاعات حساب کاربر
+  // دریافت شناسه حساب با فرستنده مشخص
   const {
     data: owner,
     isLoading: ownerLoading,
@@ -176,6 +172,7 @@ export default function App() {
     abi: bankABI,
     functionName: 'ownerInfo',
     args: address ? [address] : undefined,
+    account: address,
     chainId: 56,
     query: {
       enabled: Boolean(
@@ -185,16 +182,15 @@ export default function App() {
     }
   });
 
-  // دریافت شناسه حساب
   const rawAccountId = getField(owner, 'ID', 0);
 
   const accountId = rawAccountId !== undefined
     ? BigInt(rawAccountId)
     : undefined;
 
-  // دریافت اطلاعات شخصی
+  // دریافت اطلاعات شخصی با فرستنده مشخص
   const {
-    data: account,
+    data: personalInfo,
     isLoading: accountLoading,
     error: accountError
   } = useReadContract({
@@ -204,10 +200,12 @@ export default function App() {
     args: accountId !== undefined && accountId > 0n
       ? [accountId]
       : undefined,
+    account: address,
     chainId: 56,
     query: {
       enabled: Boolean(
         isConnected &&
+        address &&
         correctNetwork &&
         accountId !== undefined &&
         accountId > 0n
@@ -216,7 +214,6 @@ export default function App() {
     }
   });
 
-  // اطلاعات عمومی Gift
   const { data: giftRound, isLoading: giftLoading } =
     useReadContract({
       address: BANK,
@@ -249,7 +246,6 @@ export default function App() {
       chainId: 56
     });
 
-  // وضعیت پیشنهادها
   const { data: proposal } = useReadContract({
     address: BANK,
     abi: bankABI,
@@ -299,15 +295,9 @@ export default function App() {
             error={bnbError}
           />
 
-          <TokenBalance
-            name="USDT"
-            tokenAddress={USDT}
-          />
+          <TokenBalance name="USDT" tokenAddress={USDT} />
 
-          <TokenBalance
-            name="SGT"
-            tokenAddress={SGT}
-          />
+          <TokenBalance name="SGT" tokenAddress={SGT} />
 
           <hr />
 
@@ -323,68 +313,50 @@ export default function App() {
           />
 
           {ownerError && (
-            <p>جزئیات خطا: {ownerError.shortMessage || ownerError.message}</p>
+            <p>
+              جزئیات خطا: {ownerError.shortMessage || ownerError.message}
+            </p>
           )}
 
           <hr />
 
           <h3>اطلاعات حساب شخصی</h3>
 
-          {account && (
+          {personalInfo && (
             <>
-              <Value
-                title="مجموع Gift دریافتی"
-                value={getField(account, 'Total_Gift_Received_USDT', 0)?.toString()}
-              />
+              <Value title="مجموع Gift دریافتی"
+                value={getField(personalInfo, 'Total_Gift_Received_USDT', 0)?.toString()} />
 
-              <Value
-                title="روز از آخرین Gift"
-                value={getField(account, 'Days_Passed_Since_Last_Gift', 1)?.toString()}
-              />
+              <Value title="روز از آخرین Gift"
+                value={getField(personalInfo, 'Days_Passed_Since_Last_Gift', 1)?.toString()} />
 
-              <Value
-                title="توکن رایگان دریافت شده"
-                value={getField(account, 'Has_Received_Free_Token', 2) ? 'بله' : 'خیر'}
-              />
+              <Value title="توکن رایگان دریافت شده"
+                value={getField(personalInfo, 'Has_Received_Free_Token', 2) ? 'بله' : 'خیر'} />
 
-              <Value
-                title="مجموع پاداش Caller"
-                value={getField(account, 'Caller_Reward_Total_USDT', 3)?.toString()}
-              />
+              <Value title="مجموع پاداش Caller"
+                value={getField(personalInfo, 'Caller_Reward_Total_USDT', 3)?.toString()} />
 
-              <Value
-                title="ساعت از آخرین Caller"
-                value={getField(account, 'Hours_Passed_Since_Last_Caller', 4)?.toString()}
-              />
+              <Value title="ساعت از آخرین Caller"
+                value={getField(personalInfo, 'Hours_Passed_Since_Last_Caller', 4)?.toString()} />
 
-              <Value
-                title="ساعت از آخرین خرید"
-                value={getField(account, 'Hours_Passed_Since_Last_Buy', 5)?.toString()}
-              />
+              <Value title="ساعت از آخرین خرید"
+                value={getField(personalInfo, 'Hours_Passed_Since_Last_Buy', 5)?.toString()} />
 
-              <Value
-                title="پاداش Tier 1"
-                value={getField(account, 'Claimed_Tier_1_Reward', 6) ? 'دریافت شده' : 'دریافت نشده'}
-              />
+              <Value title="پاداش Tier 1"
+                value={getField(personalInfo, 'Claimed_Tier_1_Reward', 6) ? 'دریافت شده' : 'دریافت نشده'} />
 
-              <Value
-                title="پاداش Tier 2"
-                value={getField(account, 'Claimed_Tier_2_Reward', 7) ? 'دریافت شده' : 'دریافت نشده'}
-              />
+              <Value title="پاداش Tier 2"
+                value={getField(personalInfo, 'Claimed_Tier_2_Reward', 7) ? 'دریافت شده' : 'دریافت نشده'} />
 
-              <Value
-                title="پاداش Tier 3"
-                value={getField(account, 'Claimed_Tier_3_Reward', 8) ? 'دریافت شده' : 'دریافت نشده'}
-              />
+              <Value title="پاداش Tier 3"
+                value={getField(personalInfo, 'Claimed_Tier_3_Reward', 8) ? 'دریافت شده' : 'دریافت نشده'} />
 
-              <Value
-                title="پاداش Tier 4"
-                value={getField(account, 'Claimed_Tier_4_Reward', 9) ? 'دریافت شده' : 'دریافت نشده'}
-              />
+              <Value title="پاداش Tier 4"
+                value={getField(personalInfo, 'Claimed_Tier_4_Reward', 9) ? 'دریافت شده' : 'دریافت نشده'} />
             </>
           )}
 
-          {!account && accountId > 0n && (
+          {!personalInfo && accountId > 0n && (
             <p>
               {accountLoading
                 ? 'در حال دریافت اطلاعات حساب...'
@@ -398,29 +370,21 @@ export default function App() {
 
           <h3>اطلاعات عمومی Gift</h3>
 
-          <Value
-            title="دور فعلی Gift"
+          <Value title="دور فعلی Gift"
             value={giftRound?.toString()}
-            loading={giftLoading}
-          />
+            loading={giftLoading} />
 
-          <Value
-            title="اندازه فهرست Gift"
+          <Value title="اندازه فهرست Gift"
             value={giftSize?.toString()}
-            loading={sizeLoading}
-          />
+            loading={sizeLoading} />
 
-          <Value
-            title="موجودی Global Token"
+          <Value title="موجودی Global Token"
             value={tokenBalance?.toString()}
-            loading={tokenLoading}
-          />
+            loading={tokenLoading} />
 
-          <Value
-            title="موجودی USDT قرارداد"
+          <Value title="موجودی USDT قرارداد"
             value={contractUsdt?.toString()}
-            loading={usdtLoading}
-          />
+            loading={usdtLoading} />
 
           <hr />
 
