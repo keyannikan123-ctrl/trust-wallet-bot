@@ -99,6 +99,12 @@ const bankABI = [
   }
 ];
 
+// خواندن خروجی قرارداد، چه به شکل آرایه و چه شیء
+function getField(data, name, index) {
+  if (!data) return undefined;
+  return data[name] ?? data[index];
+}
+
 function Value({ title, value, loading, error }) {
   return (
     <p>
@@ -115,14 +121,14 @@ function Value({ title, value, loading, error }) {
 }
 
 function TokenBalance({ name, tokenAddress }) {
-  const { address } = useAppKitAccount();
+  const { address, isConnected } = useAppKitAccount();
 
   const { data, isLoading, error } = useBalance({
     address,
     token: tokenAddress,
     chainId: 56,
     query: {
-      enabled: Boolean(address)
+      enabled: Boolean(isConnected && address)
     }
   });
 
@@ -147,16 +153,20 @@ export default function App() {
 
   const correctNetwork = Number(chainId) === 56;
 
-  const { data: bnb, isLoading: bnbLoading, error: bnbError } =
-    useBalance({
-      address,
-      chainId: 56,
-      query: {
-        enabled: Boolean(isConnected && address)
-      }
-    });
+  // موجودی BNB
+  const {
+    data: bnb,
+    isLoading: bnbLoading,
+    error: bnbError
+  } = useBalance({
+    address,
+    chainId: 56,
+    query: {
+      enabled: Boolean(isConnected && address)
+    }
+  });
 
-  // Find the connected user's SmartGlobal ID
+  // اطلاعات حساب کاربر
   const {
     data: owner,
     isLoading: ownerLoading,
@@ -168,13 +178,21 @@ export default function App() {
     args: address ? [address] : undefined,
     chainId: 56,
     query: {
-      enabled: Boolean(isConnected && address && correctNetwork)
+      enabled: Boolean(
+        isConnected && address && correctNetwork
+      ),
+      retry: 2
     }
   });
 
-  // Read personal account information using the discovered ID
-  const accountId = owner ? owner[0] : undefined;
+  // دریافت شناسه حساب
+  const rawAccountId = getField(owner, 'ID', 0);
 
+  const accountId = rawAccountId !== undefined
+    ? BigInt(rawAccountId)
+    : undefined;
+
+  // دریافت اطلاعات شخصی
   const {
     data: account,
     isLoading: accountLoading,
@@ -193,11 +211,12 @@ export default function App() {
         correctNetwork &&
         accountId !== undefined &&
         accountId > 0n
-      )
+      ),
+      retry: 2
     }
   });
 
-  // Public SmartGlobal information
+  // اطلاعات عمومی Gift
   const { data: giftRound, isLoading: giftLoading } =
     useReadContract({
       address: BANK,
@@ -230,6 +249,7 @@ export default function App() {
       chainId: 56
     });
 
+  // وضعیت پیشنهادها
   const { data: proposal } = useReadContract({
     address: BANK,
     abi: bankABI,
@@ -295,16 +315,16 @@ export default function App() {
 
           <Value
             title="شناسه حساب"
-            value={
-              owner && accountId > 0n
-                ? accountId.toString()
-                : owner
-                  ? 'حساب پیدا نشد'
-                  : undefined
-            }
+            value={accountId !== undefined && accountId > 0n
+              ? accountId.toString()
+              : undefined}
             loading={ownerLoading}
             error={ownerError}
           />
+
+          {ownerError && (
+            <p>جزئیات خطا: {ownerError.shortMessage || ownerError.message}</p>
+          )}
 
           <hr />
 
@@ -314,52 +334,52 @@ export default function App() {
             <>
               <Value
                 title="مجموع Gift دریافتی"
-                value={account[0]}
+                value={getField(account, 'Total_Gift_Received_USDT', 0)?.toString()}
               />
 
               <Value
                 title="روز از آخرین Gift"
-                value={account[1]}
+                value={getField(account, 'Days_Passed_Since_Last_Gift', 1)?.toString()}
               />
 
               <Value
                 title="توکن رایگان دریافت شده"
-                value={account[2] ? 'بله' : 'خیر'}
+                value={getField(account, 'Has_Received_Free_Token', 2) ? 'بله' : 'خیر'}
               />
 
               <Value
                 title="مجموع پاداش Caller"
-                value={account[3]}
+                value={getField(account, 'Caller_Reward_Total_USDT', 3)?.toString()}
               />
 
               <Value
                 title="ساعت از آخرین Caller"
-                value={account[4]}
+                value={getField(account, 'Hours_Passed_Since_Last_Caller', 4)?.toString()}
               />
 
               <Value
                 title="ساعت از آخرین خرید"
-                value={account[5]}
+                value={getField(account, 'Hours_Passed_Since_Last_Buy', 5)?.toString()}
               />
 
               <Value
                 title="پاداش Tier 1"
-                value={account[6] ? 'دریافت شده' : 'دریافت نشده'}
+                value={getField(account, 'Claimed_Tier_1_Reward', 6) ? 'دریافت شده' : 'دریافت نشده'}
               />
 
               <Value
                 title="پاداش Tier 2"
-                value={account[7] ? 'دریافت شده' : 'دریافت نشده'}
+                value={getField(account, 'Claimed_Tier_2_Reward', 7) ? 'دریافت شده' : 'دریافت نشده'}
               />
 
               <Value
                 title="پاداش Tier 3"
-                value={account[8] ? 'دریافت شده' : 'دریافت نشده'}
+                value={getField(account, 'Claimed_Tier_3_Reward', 8) ? 'دریافت شده' : 'دریافت نشده'}
               />
 
               <Value
                 title="پاداش Tier 4"
-                value={account[9] ? 'دریافت شده' : 'دریافت نشده'}
+                value={getField(account, 'Claimed_Tier_4_Reward', 9) ? 'دریافت شده' : 'دریافت نشده'}
               />
             </>
           )}
@@ -391,13 +411,13 @@ export default function App() {
           />
 
           <Value
-            title="موجودی Global Token (واحد خام)"
+            title="موجودی Global Token"
             value={tokenBalance?.toString()}
             loading={tokenLoading}
           />
 
           <Value
-            title="موجودی USDT قرارداد (واحد خام)"
+            title="موجودی USDT قرارداد"
             value={contractUsdt?.toString()}
             loading={usdtLoading}
           />
@@ -408,11 +428,11 @@ export default function App() {
 
           {proposal && (
             <>
-              <Value title="آدرس هدف" value={proposal[0]} />
-              <Value title="نوع پیشنهاد" value={proposal[1]} />
-              <Value title="رأی 300" value={proposal[2]} />
-              <Value title="رأی 100" value={proposal[3]} />
-              <Value title="مرحله" value={proposal[4]} />
+              <Value title="آدرس هدف" value={getField(proposal, 'target', 0)} />
+              <Value title="نوع پیشنهاد" value={getField(proposal, 'pType', 1)} />
+              <Value title="رأی 300" value={getField(proposal, 'votes300', 2)} />
+              <Value title="رأی 100" value={getField(proposal, 'votes100', 3)} />
+              <Value title="مرحله" value={getField(proposal, 'stage', 4)} />
             </>
           )}
 
@@ -420,8 +440,8 @@ export default function App() {
       )}
 
       <p className="notice">
-        این برنامه فقط اطلاعات عمومی بلاک‌چین و حساب متصل‌شده را
-        می‌خواند. هیچ انتقال پول، امضا یا تراکنشی انجام نمی‌دهد.
+        این برنامه فقط اطلاعات بلاک‌چین و حساب متصل‌شده را می‌خواند.
+        هیچ انتقال پول، امضا یا تراکنشی انجام نمی‌دهد.
       </p>
 
     </main>
