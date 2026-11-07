@@ -1,13 +1,22 @@
 {
+  "id": "/trust-wallet-bot/",
   "name": "Trust Wallet Bot",
   "short_name": "Trust Bot",
   "description": "SmartGlobal Dashboard - BNB Smart Chain",
   "lang": "fa",
   "dir": "rtl",
-  "start_url": "./",
-  "scope": "./",
+  "start_url": "/trust-wallet-bot/",
+  "scope": "/trust-wallet-bot/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#10233f",
-  "theme_color": "#10233f"
+  "theme_color": "#10233f",
+  "icons": [
+    {
+      "src": "/trust-wallet-bot/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
 }
