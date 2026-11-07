@@ -1,7 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="110" fill="#10233f"/>
-  <circle cx="256" cy="256" r="145" fill="#26c6a0"/>
-  <path d="M256 105 365 165 365 285 256 345 147 285 147 165Z" fill="#ffffff"/>
-  <path d="M256 165 310 195 310 255 256 285 202 255 202 195Z" fill="#10233f"/>
-  <path d="M256 225v95" stroke="#26c6a0" stroke-width="18" stroke-linecap="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+<rect width="512" height="512" rx="100" fill="#10233f"/>
+<circle cx="256" cy="256" r="140" fill="#26c6a0"/>
+<text x="256" y="290" font-size="110" text-anchor="middle" fill="white" font-family="Arial">TW</text>
 </svg>
