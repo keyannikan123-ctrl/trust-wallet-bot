@@ -17,3 +17,14 @@ createRoot(document.getElementById('root')).render(
     </WagmiProvider>
   </React.StrictMode>
 );
+
+// ثبت Service Worker برای اجرای مستقل وب‌اپلیکیشن
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker
+      .register(`${import.meta.env.BASE_URL}sw.js`)
+      .catch((error) => {
+        console.error('Service Worker registration failed:', error);
+      });
+  });
+}
