@@ -395,6 +395,13 @@ export default function App() {
       ).toFixed(4)
     : '0';
 
+  // این تابع مقدار justContractBalance را همان‌طور که قرارداد
+  // برمی‌گرداند نمایش می‌دهد؛ قرارداد قبلاً آن را بر 10**18 تقسیم کرده است.
+  const payUsdtValue =
+    payBalanceQuery.data !== undefined
+      ? `${payBalanceQuery.data.toString()} USDT`
+      : undefined;
+
   const personal = personalQuery.data;
   const proposal = proposalQuery.data;
 
@@ -657,7 +664,7 @@ export default function App() {
             />
 
             <Value
-              title="موجودی USDT قرارداد (مقدار خام)"
+              title="موجودی USDT قرارداد Bank (مقدار خام)"
               value={bankUsdtQuery.data?.toString()}
               loading={bankUsdtQuery.isLoading}
               error={bankUsdtQuery.isError}
@@ -702,7 +709,7 @@ export default function App() {
             />
 
             <Value
-              title="ساعت گذشته از آخرین فعالیت"
+              title="ساعت گذشته از آخرین تماس‌گیرنده"
               value={field(personal, 'Hours_Passed_Since_Last_Caller', 4)?.toString()}
               loading={personalQuery.isLoading}
               error={personalQuery.isError}
@@ -731,15 +738,15 @@ export default function App() {
             />
 
             <Value
-              title="ساعت گذشته از آخرین پاداش"
+              title="ساعت گذشته از آخرین پاداش شخصی"
               value={rewardHoursQuery.data?.toString()}
               loading={rewardHoursQuery.isLoading}
               error={rewardHoursQuery.isError}
             />
 
             <Value
-              title="موجودی قرارداد Pay (مقدار خام)"
-              value={payBalanceQuery.data?.toString()}
+              title="موجودی قرارداد Pay"
+              value={payUsdtValue}
               loading={payBalanceQuery.isLoading}
               error={payBalanceQuery.isError}
             />
@@ -767,23 +774,24 @@ export default function App() {
           </section>
 
           <section className="panel">
-            <h2>بررسی شرایط عملیات SmartGlobal</h2>
+            <h2>بررسی اطلاعات عملیات SmartGlobal</h2>
 
             <p className="muted">
-              این بخش فقط اطلاعات خواندنی را بررسی می‌کند و هیچ تراکنشی انجام نمی‌دهد.
+              این قسمت فقط داده‌های عمومی قرارداد را می‌خواند.
+              نتیجه آن به معنی تأیید صلاحیت یا تضمین دریافت پاداش نیست.
             </p>
 
-            <h3>۱. شرایط ثبت‌نام Gift</h3>
+            <h3>۱. اطلاعات Gift</h3>
 
             <Value
-              title="تعداد اعضای فهرست Gift (حداکثر ۵۰۰)"
+              title="تعداد اعضای فهرست Gift"
               value={giftSizeQuery.data?.toString()}
               loading={giftSizeQuery.isLoading}
               error={giftSizeQuery.isError}
             />
 
             <Value
-              title="روزهای گذشته از آخرین Gift (بیشتر از ۶ روز)"
+              title="روزهای گذشته از آخرین Gift"
               value={field(personal, 'Days_Passed_Since_Last_Gift', 1)?.toString()}
               loading={personalQuery.isLoading}
               error={personalQuery.isError}
@@ -796,18 +804,7 @@ export default function App() {
               error={personalQuery.isError}
             />
 
-            <Value
-              title="امتیازهای حساب (باید صفر باشد)"
-              value={payPointsQuery.data?.toString()}
-              loading={payPointsQuery.isLoading}
-              error={payPointsQuery.isError}
-            />
-
-            <p className="warning">
-              نتیجه قطعی نیست؛ بعضی شرایط داخلی قرارداد از اطلاعات عمومی قابل بررسی نیست.
-            </p>
-
-            <h3>۲. شرایط توزیع Gift</h3>
+            <h3>۲. اطلاعات توزیع Gift</h3>
 
             <Value
               title="موجودی USDT قرارداد Bank (مقدار خام)"
@@ -817,24 +814,13 @@ export default function App() {
             />
 
             <Value
-              title="ساعت گذشته از آخرین فعالیت تماس‌گیرنده"
+              title="ساعت گذشته از آخرین تماس‌گیرنده"
               value={field(personal, 'Hours_Passed_Since_Last_Caller', 4)?.toString()}
               loading={personalQuery.isLoading}
               error={personalQuery.isError}
             />
 
-            <Value
-              title="مجموع پاداش تماس‌گیرنده (مقدار خام)"
-              value={field(personal, 'Caller_Reward_Total_USDT', 3)?.toString()}
-              loading={personalQuery.isLoading}
-              error={personalQuery.isError}
-            />
-
-            <p className="warning">
-              توزیع Gift یک عملیات سراسری است و روی اعضای دیگر هم اثر می‌گذارد.
-            </p>
-
-            <h3>۳. شرایط Pay Reward</h3>
+            <h3>۳. اطلاعات Pay Reward</h3>
 
             <Value
               title="عضویت در Pay"
@@ -862,19 +848,16 @@ export default function App() {
             />
 
             <Value
-              title="موجودی قرارداد Pay (مقدار خام)"
-              value={payBalanceQuery.data?.toString()}
+              title="موجودی قرارداد Pay"
+              value={payUsdtValue}
               loading={payBalanceQuery.isLoading}
               error={payBalanceQuery.isError}
             />
 
             <p className="warning">
-              شرایط داخلی و زمان آخرین توزیع سراسری کاملاً قابل مشاهده نیست؛
-              این بخش صلاحیت نهایی را تضمین نمی‌کند.
-            </p>
-
-            <p className="muted">
-              هیچ دکمه اجرا، پرداخت یا حالت خودکار در این نسخه وجود ندارد.
+              Pay Reward یک عملیات سراسری است و می‌تواند روی اعضای دیگر نیز
+              اثر بگذارد. اطلاعات این داشبورد برای تأیید آماده‌بودن آن کافی نیست.
+              این برنامه هیچ عملیات مالی انجام نمی‌دهد.
             </p>
           </section>
 
@@ -929,4 +912,4 @@ export default function App() {
       </section>
     </main>
   );
-}
+               }
