@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 
 import {
   useAppKit,
@@ -20,38 +20,12 @@ const USDT = '0x55d398326f99059ff775485246999027b3197955';
 const PAY = '0x6bd7671ec2b11dc32f204641d67084977e5c81f9';
 
 const bankABI = [
+  { type: 'function', name: '_currentGiftRound', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'giftListSize', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'globalTokenBalance', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'usdtBalance', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
   {
-    type: 'function',
-    name: '_currentGiftRound',
-    stateMutability: 'view',
-    inputs: [],
-    outputs: [{ type: 'uint256' }]
-  },
-  {
-    type: 'function',
-    name: 'giftListSize',
-    stateMutability: 'view',
-    inputs: [],
-    outputs: [{ type: 'uint256' }]
-  },
-  {
-    type: 'function',
-    name: 'globalTokenBalance',
-    stateMutability: 'view',
-    inputs: [],
-    outputs: [{ type: 'uint256' }]
-  },
-  {
-    type: 'function',
-    name: 'usdtBalance',
-    stateMutability: 'view',
-    inputs: [],
-    outputs: [{ type: 'uint256' }]
-  },
-  {
-    type: 'function',
-    name: 'ownerInfo',
-    stateMutability: 'view',
+    type: 'function', name: 'ownerInfo', stateMutability: 'view',
     inputs: [{ name: 'owner', type: 'address' }],
     outputs: [
       { name: 'ID', type: 'uint64' },
@@ -67,9 +41,7 @@ const bankABI = [
     ]
   },
   {
-    type: 'function',
-    name: 'ownerBankInfo',
-    stateMutability: 'view',
+    type: 'function', name: 'ownerBankInfo', stateMutability: 'view',
     inputs: [{ name: 'id', type: 'uint64' }],
     outputs: [
       { name: 'Total_Gift_Received_USDT', type: 'uint256' },
@@ -84,17 +56,9 @@ const bankABI = [
       { name: 'Claimed_Tier_4_Reward', type: 'bool' }
     ]
   },
+  { type: 'function', name: 'distributeBank', stateMutability: 'nonpayable', inputs: [], outputs: [] },
   {
-    type: 'function',
-    name: 'distributeBank',
-    stateMutability: 'nonpayable',
-    inputs: [],
-    outputs: []
-  },
-  {
-    type: 'function',
-    name: 'currentProposalStatus',
-    stateMutability: 'view',
+    type: 'function', name: 'currentProposalStatus', stateMutability: 'view',
     inputs: [],
     outputs: [
       { name: 'target', type: 'address' },
@@ -107,13 +71,7 @@ const bankABI = [
 ];
 
 const payABI = [
-  {
-    type: 'function',
-    name: 'payReward',
-    stateMutability: 'nonpayable',
-    inputs: [],
-    outputs: []
-  },
+  { type: 'function', name: 'payReward', stateMutability: 'nonpayable', inputs: [], outputs: [] },
   {
     type: 'function',
     name: 'ownerStatus',
@@ -130,67 +88,15 @@ const payABI = [
   },
   {
     type: 'function',
-    name: 'ownerPoint7',
-    stateMutability: 'view',
-    inputs: [],
-    outputs: [{ type: 'uint256' }]
-  },
-  {
-    type: 'function',
-    name: 'ownerPoint20',
-    stateMutability: 'view',
-    inputs: [],
-    outputs: [{ type: 'uint256' }]
-  },
-  {
-    type: 'function',
-    name: 'ownerPoint100',
-    stateMutability: 'view',
-    inputs: [],
-    outputs: [{ type: 'uint256' }]
-  },
-  {
-    type: 'function',
-    name: 'ownerPoint300',
-    stateMutability: 'view',
-    inputs: [],
-    outputs: [{ type: 'uint256' }]
-  },
-  {
-    type: 'function',
     name: 'lastRewardTimePassed',
     stateMutability: 'view',
     inputs: [{ name: 'owner', type: 'address' }],
     outputs: [{ type: 'uint256' }]
   },
-  {
-    type: 'function',
-    name: 'justContractBalance',
-    stateMutability: 'view',
-    inputs: [],
-    outputs: [{ type: 'uint256' }]
-  },
-  {
-    type: 'function',
-    name: 'newOwnerStatus',
-    stateMutability: 'view',
-    inputs: [],
-    outputs: [{ type: 'uint256' }]
-  },
-  {
-    type: 'function',
-    name: 'lastTotalPoint',
-    stateMutability: 'view',
-    inputs: [],
-    outputs: [{ type: 'uint32' }]
-  },
-  {
-    type: 'function',
-    name: 'lastValuePoint',
-    stateMutability: 'view',
-    inputs: [],
-    outputs: [{ type: 'uint256' }]
-  },
+  { type: 'function', name: 'justContractBalance', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'newOwnerStatus', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'lastTotalPoint', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint32' }] },
+  { type: 'function', name: 'lastValuePoint', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
   {
     type: 'function',
     name: 'ownerInfo',
@@ -218,322 +124,185 @@ function field(data, name, index) {
 
 function getErrorMessage(error) {
   if (!error) return '';
-
-  return (
-    error.shortMessage ||
+  return error.shortMessage ||
     error.details ||
     error.cause?.shortMessage ||
     error.cause?.message ||
-    error.message ||
-    'خطای نامشخص'
-  );
+        error.message ||
+    'خطای نامشخص';
 }
 
-function fmt(value, decimals = 18) {
-  if (value === undefined || value === null) {
-    return 'دریافت نشد';
-  }
+function fmt(value, decimals = 18, digits = 4) {
+  if (value === undefined || value === null) return '—';
 
   try {
-    return Number(formatUnits(BigInt(value), decimals))
-      .toLocaleString('en-US', {
-        maximumFractionDigits: 4
-      });
+    const number = Number(formatUnits(BigInt(value), decimals));
+    return number.toLocaleString('en-US', {
+      maximumFractionDigits: digits
+    });
   } catch {
     return String(value);
   }
 }
 
-function Value({ title, value, loading, error }) {
-  let shown = 'دریافت نشد';
-
-  if (loading) {
-    shown = 'در حال دریافت...';
-  } else if (error) {
-    shown = 'خطا در دریافت';
-  } else if (value !== undefined && value !== null) {
-    shown = value;
-  }
-
+function InfoRow({ label, value }) {
   return (
     <div className="info-row">
-      <span>{title}</span>
-      <strong>{shown}</strong>
+      <span>{label}</span>
+      <strong>{value ?? '—'}</strong>
     </div>
   );
 }
 
-function BalanceCard({ title, symbol, value, loading, error }) {
+function BalanceCard({ title, value, symbol }) {
   return (
     <div className="balance-card">
-      <span className="balance-symbol">{symbol}</span>
-      <span className="balance-title">{title}</span>
-      <strong>
-        {loading ? '...' : error ? 'خطا' : value ?? '0'}
-      </strong>
+      <span>{symbol}</span>
+      <div className="balance-title">{title}</div>
+      <strong>{value}</strong>
     </div>
   );
 }
 
 export default function App() {
   const { open } = useAppKit();
-
   const { address, isConnected } = useAppKitAccount();
-
   const { chainId } = useAppKitNetwork();
 
-  // =====================================
-  // تنظیمات AUTO و MANUAL
-  // =====================================
-
-  const [mode, setMode] = useState(() => {
-    try {
-      return localStorage.getItem('smartglobal_mode') || 'manual';
-    } catch {
-      return 'manual';
-    }
+  const [mode, setMode] = useState({
+    gift: 'MANUAL',
+    distribute: 'MANUAL',
+    pay: 'MANUAL'
   });
 
   const [refreshing, setRefreshing] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState(null);
+  const [lastRefresh, setLastRefresh] = useState(null);
+  const [notice, setNotice] = useState('');
 
-  const correctNetwork = Number(chainId) === 56;
+  const walletEnabled = Boolean(isConnected && address);
 
-  const enabled = Boolean(
-    isConnected && address && correctNetwork
-  );
-
-  function changeMode(newMode) {
-    setMode(newMode);
-
-    try {
-      localStorage.setItem('smartglobal_mode', newMode);
-    } catch {
-      // ادامه کار بدون ذخیره تنظیمات
-    }
-  }
-
-  // =====================================
-  // موجودی کیف پول
-  // =====================================
-
-  const bnbQuery = useBalance({
+  const bnbBalance = useBalance({
     address,
-    chainId: 56,
-    query: { enabled }
+    query: { enabled: walletEnabled }
   });
 
-  const usdtQuery = useBalance({
-    address,
-    token: USDT,
-    chainId: 56,
-    query: { enabled }
+  const usdtBalance = useReadContract({
+    address: USDT,
+    abi: [
+      {
+        type: 'function',
+        name: 'balanceOf',
+        stateMutability: 'view',
+        inputs: [{ name: 'account', type: 'address' }],
+        outputs: [{ type: 'uint256' }]
+      }
+    ],
+    functionName: 'balanceOf',
+    args: [address],
+    query: { enabled: walletEnabled }
   });
 
-  const sgtQuery = useBalance({
-    address,
-    token: SGT,
-    chainId: 56,
-    query: { enabled }
+  const sgtBalance = useReadContract({
+    address: SGT,
+    abi: [
+      {
+        type: 'function',
+        name: 'balanceOf',
+        stateMutability: 'view',
+        inputs: [{ name: 'account', type: 'address' }],
+        outputs: [{ type: 'uint256' }]
+      }
+    ],
+    functionName: 'balanceOf',
+    args: [address],
+    query: { enabled: walletEnabled }
   });
 
-  // =====================================
-  // اطلاعات حساب بانک
-  // =====================================
+  const currentGiftRound = useReadContract({
+    address: BANK,
+    abi: bankABI,
+    functionName: '_currentGiftRound'
+  });
 
-  const ownerQuery = useReadContract({
+  const giftListSize = useReadContract({
+    address: BANK,
+    abi: bankABI,
+    functionName: 'giftListSize'
+  });
+
+  const globalTokenBalance = useReadContract({
+    address: BANK,
+    abi: bankABI,
+    functionName: 'globalTokenBalance'
+  });
+
+  const bankUsdtBalance = useReadContract({
+    address: BANK,
+    abi: bankABI,
+    functionName: 'usdtBalance'
+  });
+
+  const bankOwnerInfo = useReadContract({
     address: BANK,
     abi: bankABI,
     functionName: 'ownerInfo',
-    args: address ? [address] : undefined,
-    account: address,
-    chainId: 56,
-    query: { enabled, retry: 2 }
+    args: [address],
+    query: { enabled: walletEnabled }
   });
 
-  const rawId = field(ownerQuery.data, 'ID', 0);
+  const accountId = field(bankOwnerInfo.data, 'ID', 0);
 
-  const accountId =
-    rawId !== undefined && rawId !== null
-      ? BigInt(rawId)
-      : undefined;
-
-  const personalQuery = useReadContract({
+  const ownerBankInfo = useReadContract({
     address: BANK,
     abi: bankABI,
     functionName: 'ownerBankInfo',
-    args:
-      accountId !== undefined && accountId > 0n
-        ? [accountId]
-        : undefined,
-    account: address,
-    chainId: 56,
+    args: accountId !== undefined ? [accountId] : undefined,
     query: {
-      enabled: Boolean(
-        enabled &&
-        accountId !== undefined &&
-        accountId > 0n
-      ),
-      retry: 2
+      enabled: walletEnabled && accountId !== undefined && BigInt(accountId) > 0n
     }
   });
 
-  // =====================================
-  // اطلاعات عمومی Gift
-  // =====================================
-
-  const giftRoundQuery = useReadContract({
-    address: BANK,
-    abi: bankABI,
-    functionName: '_currentGiftRound',
-    chainId: 56
-  });
-
-  const giftSizeQuery = useReadContract({
-    address: BANK,
-    abi: bankABI,
-    functionName: 'giftListSize',
-    chainId: 56
-  });
-
-  const tokenBalanceQuery = useReadContract({
-    address: BANK,
-    abi: bankABI,
-    functionName: 'globalTokenBalance',
-    chainId: 56
-  });
-
-  const bankUsdtQuery = useReadContract({
-    address: BANK,
-    abi: bankABI,
-    functionName: 'usdtBalance',
-    chainId: 56
-  });
-
-  const proposalQuery = useReadContract({
-    address: BANK,
-    abi: bankABI,
-    functionName: 'currentProposalStatus',
-    chainId: 56
-  });
-
-  // =====================================
-  // اطلاعات SmartGlobalPay
-  // =====================================
-
-  const payMemberQuery = useReadContract({
+  const payOwnerStatus = useReadContract({
     address: PAY,
     abi: payABI,
     functionName: 'ownerStatus',
-    args: address ? [address] : undefined,
-    chainId: 56,
-    query: { enabled }
+    args: [address],
+    query: { enabled: walletEnabled }
   });
 
-  const payOwnerQuery = useReadContract({
-    address: PAY,
-    abi: payABI,
-    functionName: 'ownerInfo',
-    args: address ? [address] : undefined,
-    account: address,
-    chainId: 56,
-    query: { enabled, retry: 2 }
-  });
-
-  const payPointsQuery = useReadContract({
+  const payOwnerPoints = useReadContract({
     address: PAY,
     abi: payABI,
     functionName: 'ownerAllPoint',
-    args: address ? [address] : undefined,
-    account: address,
-    chainId: 56,
-    query: { enabled, retry: 2 }
+    args: [address],
+    query: { enabled: walletEnabled }
   });
 
-  // امتیازهای دوره‌ای
-
-  const point7Query = useReadContract({
-    address: PAY,
-    abi: payABI,
-    functionName: 'ownerPoint7',
-    chainId: 56,
-    query: { enabled }
-  });
-
-  const point20Query = useReadContract({
-    address: PAY,
-    abi: payABI,
-    functionName: 'ownerPoint20',
-    chainId: 56,
-    query: { enabled }
-  });
-
-  const point100Query = useReadContract({
-    address: PAY,
-    abi: payABI,
-    functionName: 'ownerPoint100',
-    chainId: 56,
-    query: { enabled }
-  });
-
-  const point300Query = useReadContract({
-    address: PAY,
-    abi: payABI,
-    functionName: 'ownerPoint300',
-    chainId: 56,
-    query: { enabled }
-  });
-
-  const rewardHoursQuery = useReadContract({
+  const payLastReward = useReadContract({
     address: PAY,
     abi: payABI,
     functionName: 'lastRewardTimePassed',
-    args: address ? [address] : undefined,
-    chainId: 56,
-    query: { enabled }
+    args: [address],
+    query: { enabled: walletEnabled }
   });
 
-  const payBalanceQuery = useReadContract({
+  const payContractBalance = useReadContract({
     address: PAY,
     abi: payABI,
-    functionName: 'justContractBalance',
-    chainId: 56
+    functionName: 'justContractBalance'
   });
 
-  const pendingOwnersQuery = useReadContract({
-    address: PAY,
-    abi: payABI,
-    functionName: 'newOwnerStatus',
-    chainId: 56
-  });
-
-  const lastTotalPointsQuery = useReadContract({
-    address: PAY,
-    abi: payABI,
-    functionName: 'lastTotalPoint',
-    chainId: 56
-  });
-
-  const lastPointValueQuery = useReadContract({
-    address: PAY,
-    abi: payABI,
-    functionName: 'lastValuePoint',
-    chainId: 56
-  });
-
-  // =====================================
-  // شبیه‌سازی بدون ارسال تراکنش
-  // =====================================
-
-  const distributeSimulation = useSimulateContract({
+  const proposalStatus = useReadContract({
+    address: BANK,
+    abi: bankABI,
+    functionName: 'currentProposalStatus'
+  });   const distributeSimulation = useSimulateContract({
     address: BANK,
     abi: bankABI,
     functionName: 'distributeBank',
     account: address,
-    chainId: 56,
     query: {
-      enabled,
-      retry: false
+      enabled: walletEnabled && chainId === 56
     }
   });
 
@@ -542,140 +311,367 @@ export default function App() {
     abi: payABI,
     functionName: 'payReward',
     account: address,
-    chainId: 56,
     query: {
-      enabled,
-      retry: false
+      enabled: walletEnabled && chainId === 56
     }
   });
 
-  const owner = ownerQuery.data;
-  const personal = personalQuery.data;
-  const payOwner = payOwnerQuery.data;
-  const proposal = proposalQuery.data;
-
-  const currentLeft = field(payOwner, 'Current_Left', 3);
-  const currentRight = field(payOwner, 'Current_Right', 4);
-
-  const rawCurrentPoints =
-    currentLeft !== undefined && currentRight !== undefined
-      ? Math.min(
-          Number(currentLeft),
-          Number(currentRight)
-        )
-      : undefined;
-
-  // =====================================
-  // بروزرسانی تمام اطلاعات
-  // =====================================
-
-  const refreshAll = useCallback(async () => {
-    if (refreshing) return;
-
+  async function refreshAll() {
     setRefreshing(true);
+    setNotice('');
+
+    const queries = [
+      bnbBalance,
+      usdtBalance,
+      sgtBalance,
+      currentGiftRound,
+      giftListSize,
+      globalTokenBalance,
+      bankUsdtBalance,
+      bankOwnerInfo,
+      ownerBankInfo,
+      payOwnerStatus,
+      payOwnerPoints,
+      payLastReward,
+      payContractBalance,
+      proposalStatus,
+      distributeSimulation,
+      payRewardSimulation
+    ];
 
     try {
-      const queries = [
-        bnbQuery,
-        usdtQuery,
-        sgtQuery,
-        ownerQuery,
-        personalQuery,
-        giftRoundQuery,
-        giftSizeQuery,
-        tokenBalanceQuery,
-        bankUsdtQuery,
-        proposalQuery,
-        payMemberQuery,
-        payOwnerQuery,
-        payPointsQuery,
-        point7Query,
-        point20Query,
-        point100Query,
-        point300Query,
-        rewardHoursQuery,
-        payBalanceQuery,
-        pendingOwnersQuery,
-        lastTotalPointsQuery,
-        lastPointValueQuery,
-        distributeSimulation,
-        payRewardSimulation
-      ];
-
       await Promise.allSettled(
-        queries.map(q => q.refetch())
+        queries.map((query) => query.refetch())
       );
 
-      setLastUpdated(
-        new Date().toLocaleTimeString('fa-AF')
-      );
-
+      setLastRefresh(new Date().toLocaleTimeString());
+      setNotice('اطلاعات با موفقیت تازه شد.');
+    } catch (error) {
+      setNotice(getErrorMessage(error));
     } finally {
       setRefreshing(false);
     }
-  }, [
-    refreshing,
-    bnbQuery,
-    usdtQuery,
-    sgtQuery,
-    ownerQuery,
-    personalQuery,
-    giftRoundQuery,
-    giftSizeQuery,
-    tokenBalanceQuery,
-    bankUsdtQuery,
-    proposalQuery,
-    payMemberQuery,
-    payOwnerQuery,
-    payPointsQuery,
-    point7Query,
-    point20Query,
-    point100Query,
-    point300Query,
-    rewardHoursQuery,
-    payBalanceQuery,
-    pendingOwnersQuery,
-    lastTotalPointsQuery,
-    lastPointValueQuery,
-    distributeSimulation,
-    payRewardSimulation
-  ]);
+  }
 
-  // =====================================
-  // اجرای AUTO هر 30 ثانیه
-  // =====================================
+  const bankInfo = ownerBankInfo.data;
+  const payPoints = payOwnerPoints.data;
+
+  const giftReceived = field(bankInfo, 'Total_Gift_Received_USDT', 0);
+  const daysSinceGift = field(bankInfo, 'Days_Passed_Since_Last_Gift', 1);
+  const freeTokenReceived = field(bankInfo, 'Has_Received_Free_Token', 2);
+  const callerReward = field(bankInfo, 'Caller_Reward_Total_USDT', 3);
+  const hoursSinceCaller = field(bankInfo, 'Hours_Passed_Since_Last_Caller', 4);
+  const hoursSinceBuy = field(bankInfo, 'Hours_Passed_Since_Last_Buy', 5);
+
+  const tier1 = field(bankInfo, 'Claimed_Tier_1_Reward', 6);
+  const tier2 = field(bankInfo, 'Claimed_Tier_2_Reward', 7);
+  const tier3 = field(bankInfo, 'Claimed_Tier_3_Reward', 8);
+  const tier4 = field(bankInfo, 'Claimed_Tier_4_Reward', 9);
+
+  const ownerId = field(bankOwnerInfo.data, 'ID', 0);
+  const totalLeft = field(bankOwnerInfo.data, 'Total_Left', 1);
+  const totalRight = field(bankOwnerInfo.data, 'Total_Right', 2);
+  const currentLeft = field(bankOwnerInfo.data, 'Current_Left', 3);
+  const currentRight = field(bankOwnerInfo.data, 'Current_Right', 4);
+  const directsCount = field(bankOwnerInfo.data, 'Directs_Count', 5);
+
+  const proposal = proposalStatus.data;
+  const proposalTarget = field(proposal, 'target', 0);
+  const proposalType = field(proposal, 'pType', 1);
+  const proposalVotes300 = field(proposal, 'votes300', 2);
+  const proposalVotes100 = field(proposal, 'votes100', 3);
+  const proposalStage = field(proposal, 'stage', 4);
+ useEffect(() => {
+    try {
+      const saved = localStorage.getItem('smartglobal-modes');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setMode({
+          gift: parsed.gift || 'MANUAL',
+          distribute: parsed.distribute || 'MANUAL',
+          pay: parsed.pay || 'MANUAL'
+        });
+      }
+    } catch {
+      // تنظیمات ذخیره‌شده قابل خواندن نیست.
+    }
+  }, []);
 
   useEffect(() => {
-    if (mode !== 'auto' || !enabled) return;
+    localStorage.setItem('smartglobal-modes', JSON.stringify(mode));
+  }, [mode]);
 
-    const timer = setInterval(() => {
+  useEffect(() => {
+    const autoEnabled = Object.values(mode).includes('AUTO');
+
+    if (!autoEnabled) return;
+
+    const timer = window.setInterval(() => {
       refreshAll();
     }, 30000);
 
-    return () => clearInterval(timer);
+    return () => window.clearInterval(timer);
+  }, [mode.gift, mode.distribute, mode.pay]);
 
-  }, [mode, enabled, refreshAll]);
+  function changeMode(key, value) {
+    setMode((previous) => ({
+      ...previous,
+      [key]: value
+    }));
+  }
 
-  function simStatus(result) {
-    if (!enabled) {
-      return 'ابتدا کیف پول را به شبکه BNB وصل کنید.';
-    }
+  function ModeControl({ title, modeKey }) {
+    return (
+      <div className="mode-control">
+        <span>{title}</span>
+        <div className="mode-buttons">
+          {['OFF', 'MANUAL', 'AUTO'].map((item) => (
+            <button
+              key={item}
+              type="button"
+              className={mode[modeKey] === item ? 'selected' : ''}
+              onClick={() => changeMode(modeKey, item)}
+            >
+              {item}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
-    if (result.isLoading) {
-      return 'در حال بررسی...';
-    }
+  const networkCorrect = Number(chainId) === 56;
 
-    if (result.isError) {
-      return 'شبیه‌سازی ناموفق بود.';
-    }
-
-    if (result.data) {
-      return 'شبیه‌سازی موفق بود؛ اجرای واقعی تضمین نمی‌شود.';
-    }
-
-    return 'نتیجه هنوز دریافت نشده است.';
-  }  return (
+  return (
     <main className="app">
+      <header className="header">
+        <div>
+          <h1>Trust Wallet Bot</h1>
+          <p>SmartGlobal Dashboard · BNB Smart Chain</p>
+        </div>
+        <span className="network-badge">
+          {networkCorrect ? '● BNB Chain' : '● بررسی شبکه'}
+        </span>
+      </header>
+
+      <section className="panel">
+        <h2>اتصال کیف پول</h2>
+
+        <button
+          className="primary-button"
+          type="button"
+          onClick={() => open()}
+        >
+          {isConnected ? 'مدیریت اتصال کیف پول' : 'اتصال کیف پول'}
+        </button>
+
+        <InfoRow
+          label="وضعیت اتصال"
+          value={isConnected ? 'متصل است' : 'متصل نیست'}
+        />
+
+        <InfoRow
+          label="آدرس کیف پول"
+          value={address || '—'}
+        />
+
+        <InfoRow
+          label="شناسه شبکه"
+          value={chainId ?? '—'}
+        />
+
+        {isConnected && !networkCorrect && (
+          <p className="warning">
+            لطفاً شبکه کیف پول را روی BNB Smart Chain قرار دهید.
+          </p>
+        )}
+      </section>
+
+      <section className="panel">
+        <h2>موجودی دارایی‌ها</h2>
+
+        <div className="balances">
+          <BalanceCard
+            title="BNB"
+            value={bnbBalance.data
+              ? fmt(bnbBalance.data.value, bnbBalance.data.decimals)
+              : '—'}
+            symbol="🟡"
+          />
+
+          <BalanceCard
+            title="USDT"
+            value={usdtBalance.data !== undefined
+              ? fmt(usdtBalance.data, 18)
+              : '—'}
+            symbol="💵"
+          />
+
+          <BalanceCard
+            title="SGT"
+            value={sgtBalance.data !== undefined
+              ? fmt(sgtBalance.data, 18)
+              : '—'}
+            symbol="🪙"
+          />
+        </div>
+      </section>
+
+      <section className="panel">
+        <h2>اطلاعات حساب SmartGlobal</h2>
+
+        <InfoRow label="شناسه حساب" value={ownerId?.toString()} />
+        <InfoRow label="مجموع سمت چپ" value={totalLeft?.toString()} />
+        <InfoRow label="مجموع سمت راست" value={totalRight?.toString()} />
+        <InfoRow label="سمت چپ فعلی" value={currentLeft?.toString()} />
+        <InfoRow label="سمت راست فعلی" value={currentRight?.toString()} />
+        <InfoRow label="تعداد معرفی مستقیم" value={directsCount?.toString()} />
+      </section>      <section className="panel">
+        <h2>اطلاعات Gift</h2>
+
+        <InfoRow
+          label="دور فعلی Gift"
+          value={currentGiftRound.data?.toString()}
+        />
+        <InfoRow
+          label="اندازه فهرست Gift"
+          value={giftListSize.data?.toString()}
+        />
+        <InfoRow
+          label="مجموع Gift دریافت‌شده (USDT)"
+          value={giftReceived !== undefined ? fmt(giftReceived, 18) : '—'}
+        />
+        <InfoRow
+          label="روزهای گذشته از آخرین Gift"
+          value={daysSinceGift?.toString()}
+        />
+        <InfoRow
+          label="دریافت توکن رایگان"
+          value={freeTokenReceived === undefined ? '—' : freeTokenReceived ? 'بله' : 'خیر'}
+        />
+        <InfoRow
+          label="موجودی توکن جهانی"
+          value={globalTokenBalance.data !== undefined ? fmt(globalTokenBalance.data, 18) : '—'}
+        />
+        <InfoRow
+          label="موجودی USDT قرارداد بانک"
+          value={bankUsdtBalance.data !== undefined ? fmt(bankUsdtBalance.data, 18) : '—'}
+        />
+      </section>
+
+      <section className="panel">
+        <h2>اطلاعات Pay Reward</h2>
+
+        <InfoRow
+          label="وضعیت حساب"
+          value={payOwnerStatus.data === undefined ? '—' : payOwnerStatus.data ? 'فعال' : 'غیرفعال'}
+        />
+        <InfoRow
+          label="امتیازهای حساب"
+          value={payPoints?.toString()}
+        />
+        <InfoRow
+          label="زمان گذشته از آخرین پاداش"
+          value={payLastReward.data !== undefined ? payLastReward.data.toString() : '—'}
+        />
+        <InfoRow
+          label="موجودی قرارداد Pay"
+          value={payContractBalance.data !== undefined ? fmt(payContractBalance.data, 18) : '—'}
+        />
+        <InfoRow
+          label="مجموع پاداش Caller (USDT)"
+          value={callerReward !== undefined ? fmt(callerReward, 18) : '—'}
+        />
+        <InfoRow
+          label="ساعت گذشته از آخرین Caller"
+          value={hoursSinceCaller?.toString()}
+        />
+        <InfoRow
+          label="ساعت گذشته از آخرین خرید"
+          value={hoursSinceBuy?.toString()}
+        />
+        <InfoRow label="Tier 1" value={tier1 === undefined ? '—' : tier1 ? 'Claim شده' : 'Claim نشده'} />
+        <InfoRow label="Tier 2" value={tier2 === undefined ? '—' : tier2 ? 'Claim شده' : 'Claim نشده'} />
+        <InfoRow label="Tier 3" value={tier3 === undefined ? '—' : tier3 ? 'Claim شده' : 'Claim نشده'} />
+        <InfoRow label="Tier 4" value={tier4 === undefined ? '—' : tier4 ? 'Claim شده' : 'Claim نشده'} />
+      </section>
+
+      <section className="panel">
+        <h2>وضعیت پیشنهاد قرارداد</h2>
+
+        <InfoRow label="آدرس هدف" value={proposalTarget || '—'} />
+        <InfoRow label="نوع پیشنهاد" value={proposalType?.toString()} />
+        <InfoRow label="رأی‌های 300" value={proposalVotes300?.toString()} />
+        <InfoRow label="رأی‌های 100" value={proposalVotes100?.toString()} />
+        <InfoRow label="مرحله پیشنهاد" value={proposalStage?.toString()} />
+      </section>
+
+      <section className="panel">
+        <h2>مدیریت حالت‌ها</h2>
+
+        <ModeControl title="حالت Gift" modeKey="gift" />
+        <ModeControl title="حالت Distribute" modeKey="distribute" />
+        <ModeControl title="حالت Pay Reward" modeKey="pay" />
+
+        <p className="warning">
+          AUTO فقط اطلاعات را هر ۳۰ ثانیه تازه می‌کند.
+          هیچ تراکنشی به صورت خودکار ارسال نمی‌شود.
+          برای هر تراکنش باید خودتان در کیف پول تأیید کنید.
+        </p>
+
+        <InfoRow
+          label="بررسی Distribute"
+          value={
+            distributeSimulation.isLoading
+              ? 'در حال بررسی'
+              : distributeSimulation.error
+                ? 'خطا یا شرایط اجرا فراهم نیست'
+                : distributeSimulation.data
+                  ? 'بررسی شبیه‌سازی موفق'
+                  : 'در انتظار اطلاعات'
+          }
+        />
+
+        <InfoRow
+          label="بررسی Pay Reward"
+          value={
+            payRewardSimulation.isLoading
+              ? 'در حال بررسی'
+              : payRewardSimulation.error
+                ? 'خطا یا شرایط اجرا فراهم نیست'
+                : payRewardSimulation.data
+                  ? 'بررسی شبیه‌سازی موفق'
+                  : 'در انتظار اطلاعات'
+          }
+        />
+      </section> 
+      
+
+     <section className="panel">
+        <h2>به‌روزرسانی اطلاعات</h2>
+
+        <button
+          type="button"
+          className="primary-button"
+          onClick={refreshAll}
+          disabled={refreshing}
+        >
+          {refreshing ? 'در حال به‌روزرسانی...' : 'تازه‌سازی اطلاعات'}
+        </button>
+
+        <InfoRow
+          label="آخرین به‌روزرسانی"
+          value={lastRefresh || 'هنوز انجام نشده'}
+        />
+
+        {notice && <p className="notice">{notice}</p>}
+      </section>
+
+      <footer>
+        Trust Wallet Bot · SmartGlobal Dashboard
+        <br />
+        فقط نمایش اطلاعات و بررسی خواندنی قرارداد
+      </footer>
 
       <style>{`
         * {
@@ -684,63 +680,87 @@ export default function App() {
 
         body {
           margin: 0;
-          background: #101827;
-          color: #f4f6fb;
+          background: #f1f4f8;
           font-family: Arial, sans-serif;
+          color: #172033;
         }
 
         .app {
           max-width: 850px;
           margin: auto;
-          padding: 16px;
+          padding: 18px;
+        }
+
+        .header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          flex-wrap: wrap;
+          gap: 12px;
+          margin-bottom: 18px;
         }
 
         h1 {
-          text-align: center;
+          margin: 0 0 6px;
           font-size: 25px;
-          margin: 12px 0;
-        }
-
-        .subtitle {
-          text-align: center;
-          color: #aebbd0;
-          margin-bottom: 20px;
-        }
-
-        .panel {
-          background: #1b293d;
-          border: 1px solid #34445d;
-          border-radius: 13px;
-          padding: 16px;
-          margin: 14px 0;
         }
 
         h2 {
-          font-size: 18px;
-          margin: 0 0 14px;
-          color: #f4c95d;
+          margin: 0 0 16px;
+          font-size: 19px;
         }
 
-        h3 {
-          font-size: 16px;
-          margin-top: 20px;
+        .header p {
+          margin: 0;
+          color: #64748b;
+          font-size: 13px;
+        }
+
+        .network-badge {
+          background: #e0f2fe;
+          color: #075985;
+          padding: 9px 12px;
+          border-radius: 20px;
+          font-size: 13px;
+        }
+
+        .panel {
+          background: white;
+          padding: 18px;
+          border-radius: 14px;
+          margin-bottom: 16px;
+          box-shadow: 0 2px 9px #0000000c;
+          overflow-wrap: anywhere;
+        }
+
+        .primary-button {
+          width: 100%;
+          padding: 13px;
+          border: 0;
+          border-radius: 9px;
+          background: #1769aa;
+          color: white;
+          font-size: 15px;
+          font-weight: bold;
+          cursor: pointer;
+          margin-bottom: 14px;
+        }
+
+        .primary-button:disabled {
+          opacity: 0.6;
         }
 
         .info-row {
           display: flex;
           justify-content: space-between;
           gap: 12px;
-          padding: 10px 0;
-          border-bottom: 1px solid #34445d;
-          overflow-wrap: anywhere;
-        }
-
-        .info-row:last-child {
-          border-bottom: 0;
+          padding: 11px 0;
+          border-bottom: 1px solid #edf0f4;
+          font-size: 14px;
         }
 
         .info-row span {
-          color: #bdc9d9;
+          color: #64748b;
         }
 
         .info-row strong {
@@ -755,59 +775,102 @@ export default function App() {
         }
 
         .balance-card {
-          background: #263750;
+          background: #f5f8fc;
+          border-radius: 12px;
           padding: 14px 8px;
-          border-radius: 10px;
           text-align: center;
           min-width: 0;
         }
 
-        .balance-symbol {
-          display: block;
-          font-size: 23px;
+        .balance-card span {
+          font-size: 22px;
         }
 
         .balance-title {
-          display: block;
-          color: #bdc9d9;
+          margin: 8px 0;
+          color: #64748b;
           font-size: 13px;
-          margin: 7px 0;
         }
 
         .balance-card strong {
           overflow-wrap: anywhere;
-          font-size: 15px;
         }
 
-        button {
-          width: 100%;
-          padding: 13px;
-          border: 0;
-          border-radius: 9px;
-          background: #e8b943;
-          color: #172033;
+        .mode-control {
+          padding: 13px 0;
+          border-bottom: 1px solid #edf0f4;
+        }
+
+        .mode-control > span {
+          display: block;
+          margin-bottom: 10px;
           font-weight: bold;
-          font-size: 16px;
-          margin-top: 10px;
+        }
+
+        .mode-buttons {
+          display: flex;
+          gap: 8px;
+        }
+
+        .mode-buttons button {
+          flex: 1;
+          padding: 9px 4px;
+          border: 1px solid #cbd5e1;
+          border-radius: 8px;
+          background: white;
+          color: #334155;
           cursor: pointer;
         }
 
-        button:disabled {
-          opacity: .55;
-          cursor: not-allowed;
-        }
-
-        .status {
-          padding: 12px;
-          border-radius: 9px;
-          background: #263750;
-          margin: 9px 0;
-          line-height: 1.7;
-          overflow-wrap: anywhere;
+        .mode-buttons button.selected {
+          background: #1769aa;
+          color: white;
+          border-color: #1769aa;
         }
 
         .warning {
-          background: #493b20;
-          border: 1px solid #8d7130;
-          color: #ffe6a0;
-          padding: 13
+          background: #fff7e6;
+          color: #8a5700;
+          padding: 12px;
+          border-radius: 8px;
+          font-size: 13px;
+          line-height: 1.8;
+        }
+
+        .notice {
+          background: #e8f7ed;
+          color: #176b35;
+          padding: 11px;
+          border-radius: 8px;
+          font-size: 13px;
+        }
+
+        footer {
+          text-align: center;
+          color: #64748b;
+          font-size: 12px;
+          padding: 18px 5px;
+          line-height: 1.8;
+        }
+
+        @media(max-width: 500px) {
+          .app {
+            padding: 10px;
+          }
+
+          .panel {
+            padding: 13px;
+          }
+
+          .balances {
+            grid-template-columns: 1fr 1fr;
+          }
+
+          .info-row {
+            font-size: 13px;
+          }
+        }
+      `}</style>
+    </main>
+  );
+}
