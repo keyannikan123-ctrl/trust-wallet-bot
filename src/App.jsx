@@ -874,3 +874,11 @@ export default function App() {
     </main>
   );
 }
+<InfoRow
+  label="وضعیت خواندن اطلاعات"
+  value={bankOwnerInfo.status}
+/>
+<InfoRow
+  label="خطای قرارداد"
+  value={bankOwnerInfo.error ? getErrorMessage(bankOwnerInfo.error) : 'بدون خطا'}
+/>
