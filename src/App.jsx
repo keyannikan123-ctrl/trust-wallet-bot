@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useEffect, useMemo, useState } from 'react';
 
 import {
   useAppKit,
@@ -6,97 +7,42 @@ import {
   useAppKitNetwork
 } from '@reown/appkit/react';
 
-import {
-  useBalance,
-  useReadContract,
-  useSimulateContract
-} from 'wagmi';
-
+import { useBalance, useReadContract } from 'wagmi';
 import { formatUnits } from 'viem';
 
 const BANK = '0x7a4f5d605e88831e3eb3f9630029ff008d00e4d0';
 const SGT = '0x227c706300ad4df617358e51de443c6dc466353e';
 const USDT = '0x55d398326f99059ff775485246999027b3197955';
-const PAY = '0x6bd7671ec2b11dc32f204641d67084977e5c81f9';
 
 const bankABI = [
-  { type: 'function', name: '_currentGiftRound', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
-  { type: 'function', name: 'giftListSize', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
-  { type: 'function', name: 'globalTokenBalance', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
-  { type: 'function', name: 'usdtBalance', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
   {
-    type: 'function', name: 'ownerInfo', stateMutability: 'view',
-    inputs: [{ name: 'owner', type: 'address' }],
-    outputs: [
-      { name: 'ID', type: 'uint64' },
-      { name: 'Total_Left', type: 'uint32' },
-      { name: 'Total_Right', type: 'uint32' },
-      { name: 'Current_Left', type: 'uint32' },
-      { name: 'Current_Right', type: 'uint32' },
-      { name: 'Directs_Count', type: 'uint8' },
-      { name: 'Is_Right_Side', type: 'bool' },
-      { name: 'UpLine_Address', type: 'address' },
-      { name: 'Left_Address', type: 'address' },
-      { name: 'Right_Address', type: 'address' }
-    ]
-  },
-  {
-    type: 'function', name: 'ownerBankInfo', stateMutability: 'view',
-    inputs: [{ name: 'id', type: 'uint64' }],
-    outputs: [
-      { name: 'Total_Gift_Received_USDT', type: 'uint256' },
-      { name: 'Days_Passed_Since_Last_Gift', type: 'uint256' },
-      { name: 'Has_Received_Free_Token', type: 'bool' },
-      { name: 'Caller_Reward_Total_USDT', type: 'uint256' },
-      { name: 'Hours_Passed_Since_Last_Caller', type: 'uint256' },
-      { name: 'Hours_Passed_Since_Last_Buy', type: 'uint256' },
-      { name: 'Claimed_Tier_1_Reward', type: 'bool' },
-      { name: 'Claimed_Tier_2_Reward', type: 'bool' },
-      { name: 'Claimed_Tier_3_Reward', type: 'bool' },
-      { name: 'Claimed_Tier_4_Reward', type: 'bool' }
-    ]
-  },
-  { type: 'function', name: 'distributeBank', stateMutability: 'nonpayable', inputs: [], outputs: [] },
-  {
-    type: 'function', name: 'currentProposalStatus', stateMutability: 'view',
+    type: 'function',
+    name: '_currentGiftRound',
+    stateMutability: 'view',
     inputs: [],
-    outputs: [
-      { name: 'target', type: 'address' },
-      { name: 'pType', type: 'uint8' },
-      { name: 'votes300', type: 'uint256' },
-      { name: 'votes100', type: 'uint256' },
-      { name: 'stage', type: 'uint8' }
-    ]
-  }
-];
-
-const payABI = [
-  { type: 'function', name: 'payReward', stateMutability: 'nonpayable', inputs: [], outputs: [] },
-  {
-    type: 'function',
-    name: 'ownerStatus',
-    stateMutability: 'view',
-    inputs: [{ name: 'userAddress', type: 'address' }],
-    outputs: [{ type: 'bool' }]
-  },
-  {
-    type: 'function',
-    name: 'ownerAllPoint',
-    stateMutability: 'view',
-    inputs: [{ name: 'owner', type: 'address' }],
-    outputs: [{ type: 'uint32' }]
-  },
-  {
-    type: 'function',
-    name: 'lastRewardTimePassed',
-    stateMutability: 'view',
-    inputs: [{ name: 'owner', type: 'address' }],
     outputs: [{ type: 'uint256' }]
   },
-  { type: 'function', name: 'justContractBalance', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
-  { type: 'function', name: 'newOwnerStatus', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
-  { type: 'function', name: 'lastTotalPoint', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint32' }] },
-  { type: 'function', name: 'lastValuePoint', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  {
+    type: 'function',
+    name: 'giftListSize',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ type: 'uint256' }]
+  },
+  {
+    type: 'function',
+    name: 'globalTokenBalance',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ type: 'uint256' }]
+  },
+  {
+    type: 'function',
+    name: 'usdtBalance',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ type: 'uint256' }]
+  },
   {
     type: 'function',
     name: 'ownerInfo',
@@ -117,49 +63,22 @@ const payABI = [
   }
 ];
 
-function field(data, name, index) {
-  if (!data) return undefined;
-  return data[name] ?? data[index];
-}
-
-function getErrorMessage(error) {
-  if (!error) return '';
-  return error.shortMessage ||
-    error.details ||
-    error.cause?.shortMessage ||
-    error.cause?.message ||
-        error.message ||
-    'خطای نامشخص';
-}
-
-function fmt(value, decimals = 18, digits = 4) {
+const money = (value, decimals = 18) => {
   if (value === undefined || value === null) return '—';
-
   try {
-    const number = Number(formatUnits(BigInt(value), decimals));
-    return number.toLocaleString('en-US', {
-      maximumFractionDigits: digits
-    });
+    return Number(formatUnits(BigInt(value), decimals))
+      .toLocaleString('en-US', { maximumFractionDigits: 4 });
   } catch {
     return String(value);
   }
-}
+};
 
-function InfoRow({ label, value }) {
+function Card({ title, value, subtitle }) {
   return (
-    <div className="info-row">
-      <span>{label}</span>
-      <strong>{value ?? '—'}</strong>
-    </div>
-  );
-}
-
-function BalanceCard({ title, value, symbol }) {
-  return (
-    <div className="balance-card">
-      <span>{symbol}</span>
-      <div className="balance-title">{title}</div>
-      <strong>{value}</strong>
+    <div className="card">
+      <div className="muted">{title}</div>
+      <strong className="card-value">{value ?? '—'}</strong>
+      {subtitle && <small>{subtitle}</small>}
     </div>
   );
 }
@@ -169,508 +88,364 @@ export default function App() {
   const { address, isConnected } = useAppKitAccount();
   const { chainId } = useAppKitNetwork();
 
-  const [mode, setMode] = useState({
-    gift: 'MANUAL',
-    distribute: 'MANUAL',
-    pay: 'MANUAL'
-  });
+  const [language, setLanguage] = useState('fa');
+  const [coins, setCoins] = useState([]);
+  const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [marketError, setMarketError] = useState('');
+  const [lastUpdate, setLastUpdate] = useState('');
+  const [auto, setAuto] = useState(false);
+  const [tab, setTab] = useState('market');
 
-  const [refreshing, setRefreshing] = useState(false);
-  const [lastRefresh, setLastRefresh] = useState(null);
-  const [notice, setNotice] = useState('');
+  const fa = language === 'fa';
+  const connected = Boolean(isConnected && address);
+  const correctNetwork = Number(chainId) === 56;
 
-  const walletEnabled = Boolean(isConnected && address);
+  const t = (faText, enText) => fa ? faText : enText;
 
-  const bnbBalance = useBalance({
+  const bnb = useBalance({
     address,
-    query: { enabled: walletEnabled }
+    query: { enabled: connected }
   });
 
-  const usdtBalance = useReadContract({
+  const usdt = useReadContract({
     address: USDT,
-    abi: [
-      {
-        type: 'function',
-        name: 'balanceOf',
-        stateMutability: 'view',
-        inputs: [{ name: 'account', type: 'address' }],
-        outputs: [{ type: 'uint256' }]
-      }
-    ],
+    abi: [{
+      type: 'function',
+      name: 'balanceOf',
+      stateMutability: 'view',
+      inputs: [{ name: 'account', type: 'address' }],
+      outputs: [{ type: 'uint256' }]
+    }],
     functionName: 'balanceOf',
-    args: [address],
-    query: { enabled: walletEnabled }
+    args: address ? [address] : undefined,
+    query: { enabled: connected && correctNetwork }
   });
 
-  const sgtBalance = useReadContract({
+  const sgt = useReadContract({
     address: SGT,
-    abi: [
-      {
-        type: 'function',
-        name: 'balanceOf',
-        stateMutability: 'view',
-        inputs: [{ name: 'account', type: 'address' }],
-        outputs: [{ type: 'uint256' }]
-      }
-    ],
+    abi: [{
+      type: 'function',
+      name: 'balanceOf',
+      stateMutability: 'view',
+      inputs: [{ name: 'account', type: 'address' }],
+      outputs: [{ type: 'uint256' }]
+    }],
     functionName: 'balanceOf',
-    args: [address],
-    query: { enabled: walletEnabled }
+    args: address ? [address] : undefined,
+    query: { enabled: connected && correctNetwork }
   });
 
-  const currentGiftRound = useReadContract({
+  const giftRound = useReadContract({
     address: BANK,
     abi: bankABI,
     functionName: '_currentGiftRound'
   });
 
-  const giftListSize = useReadContract({
+  const giftSize = useReadContract({
     address: BANK,
     abi: bankABI,
     functionName: 'giftListSize'
   });
 
-  const globalTokenBalance = useReadContract({
+  const globalTokens = useReadContract({
     address: BANK,
     abi: bankABI,
     functionName: 'globalTokenBalance'
   });
 
-  const bankUsdtBalance = useReadContract({
+  const bankUsdt = useReadContract({
     address: BANK,
     abi: bankABI,
     functionName: 'usdtBalance'
   });
 
-  const bankOwnerInfo = useReadContract({
+  const ownerInfo = useReadContract({
     address: BANK,
     abi: bankABI,
     functionName: 'ownerInfo',
-    args: [address],
-    query: { enabled: walletEnabled }
+    args: address ? [address] : undefined,
+    query: { enabled: connected && correctNetwork }
   });
 
-  const accountId = field(bankOwnerInfo.data, 'ID', 0);
-
-  const ownerBankInfo = useReadContract({
-    address: BANK,
-    abi: bankABI,
-    functionName: 'ownerBankInfo',
-    args: accountId !== undefined ? [accountId] : undefined,
-    query: {
-      enabled: walletEnabled && accountId !== undefined && BigInt(accountId) > 0n
-    }
-  });
-
-  const payOwnerStatus = useReadContract({
-    address: PAY,
-    abi: payABI,
-    functionName: 'ownerStatus',
-    args: [address],
-    query: { enabled: walletEnabled }
-  });
-
-  const payOwnerPoints = useReadContract({
-    address: PAY,
-    abi: payABI,
-    functionName: 'ownerAllPoint',
-    args: [address],
-    query: { enabled: walletEnabled }
-  });
-
-  const payLastReward = useReadContract({
-    address: PAY,
-    abi: payABI,
-    functionName: 'lastRewardTimePassed',
-    args: [address],
-    query: { enabled: walletEnabled }
-  });
-
-  const payContractBalance = useReadContract({
-    address: PAY,
-    abi: payABI,
-    functionName: 'justContractBalance'
-  });
-
-  const proposalStatus = useReadContract({
-    address: BANK,
-    abi: bankABI,
-    functionName: 'currentProposalStatus'
-  });   const distributeSimulation = useSimulateContract({
-    address: BANK,
-    abi: bankABI,
-    functionName: 'distributeBank',
-    account: address,
-    query: {
-      enabled: walletEnabled && chainId === 56
-    }
-  });
-
-  const payRewardSimulation = useSimulateContract({
-    address: PAY,
-    abi: payABI,
-    functionName: 'payReward',
-    account: address,
-    query: {
-      enabled: walletEnabled && chainId === 56
-    }
-  });
-
-  async function refreshAll() {
-    setRefreshing(true);
-    setNotice('');
-
-    const queries = [
-      bnbBalance,
-      usdtBalance,
-      sgtBalance,
-      currentGiftRound,
-      giftListSize,
-      globalTokenBalance,
-      bankUsdtBalance,
-      bankOwnerInfo,
-      ownerBankInfo,
-      payOwnerStatus,
-      payOwnerPoints,
-      payLastReward,
-      payContractBalance,
-      proposalStatus,
-      distributeSimulation,
-      payRewardSimulation
-    ];
+  async function loadMarket() {
+    setLoading(true);
+    setMarketError('');
 
     try {
-      await Promise.allSettled(
-        queries.map((query) => query.refetch())
+      const response = await fetch(
+        'https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=50&page=1&sparkline=false&price_change_percentage=24h'
       );
 
-      setLastRefresh(new Date().toLocaleTimeString());
-      setNotice('اطلاعات با موفقیت تازه شد.');
+      if (!response.ok) {
+        throw new Error(
+          response.status === 429
+            ? 'Too many requests. Please wait and try again.'
+            : 'Market data could not be loaded.'
+        );
+      }
+
+      const data = await response.json();
+
+      if (!Array.isArray(data)) {
+        throw new Error('Invalid market data.');
+      }
+
+      setCoins(data);
+      setLastUpdate(new Date().toLocaleTimeString());
     } catch (error) {
-      setNotice(getErrorMessage(error));
+      setMarketError(error.message || 'Connection error');
     } finally {
-      setRefreshing(false);
+      setLoading(false);
     }
   }
 
-  const bankInfo = ownerBankInfo.data;
-  const payPoints = payOwnerPoints.data;
-
-  const giftReceived = field(bankInfo, 'Total_Gift_Received_USDT', 0);
-  const daysSinceGift = field(bankInfo, 'Days_Passed_Since_Last_Gift', 1);
-  const freeTokenReceived = field(bankInfo, 'Has_Received_Free_Token', 2);
-  const callerReward = field(bankInfo, 'Caller_Reward_Total_USDT', 3);
-  const hoursSinceCaller = field(bankInfo, 'Hours_Passed_Since_Last_Caller', 4);
-  const hoursSinceBuy = field(bankInfo, 'Hours_Passed_Since_Last_Buy', 5);
-
-  const tier1 = field(bankInfo, 'Claimed_Tier_1_Reward', 6);
-  const tier2 = field(bankInfo, 'Claimed_Tier_2_Reward', 7);
-  const tier3 = field(bankInfo, 'Claimed_Tier_3_Reward', 8);
-  const tier4 = field(bankInfo, 'Claimed_Tier_4_Reward', 9);
-
-  const ownerId = field(bankOwnerInfo.data, 'ID', 0);
-  const totalLeft = field(bankOwnerInfo.data, 'Total_Left', 1);
-  const totalRight = field(bankOwnerInfo.data, 'Total_Right', 2);
-  const currentLeft = field(bankOwnerInfo.data, 'Current_Left', 3);
-  const currentRight = field(bankOwnerInfo.data, 'Current_Right', 4);
-  const directsCount = field(bankOwnerInfo.data, 'Directs_Count', 5);
-
-  const proposal = proposalStatus.data;
-  const proposalTarget = field(proposal, 'target', 0);
-  const proposalType = field(proposal, 'pType', 1);
-  const proposalVotes300 = field(proposal, 'votes300', 2);
-  const proposalVotes100 = field(proposal, 'votes100', 3);
-  const proposalStage = field(proposal, 'stage', 4);
- useEffect(() => {
-    try {
-      const saved = localStorage.getItem('smartglobal-modes');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        setMode({
-          gift: parsed.gift || 'MANUAL',
-          distribute: parsed.distribute || 'MANUAL',
-          pay: parsed.pay || 'MANUAL'
-        });
-      }
-    } catch {
-      // تنظیمات ذخیره‌شده قابل خواندن نیست.
-    }
+  useEffect(() => {
+    loadMarket();
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('smartglobal-modes', JSON.stringify(mode));
-  }, [mode]);
-
-  useEffect(() => {
-    const autoEnabled = Object.values(mode).includes('AUTO');
-
-    if (!autoEnabled) return;
+    if (!auto) return;
 
     const timer = window.setInterval(() => {
-      refreshAll();
-    }, 30000);
+      loadMarket();
+    }, 60000);
 
     return () => window.clearInterval(timer);
-  }, [mode.gift, mode.distribute, mode.pay]);
+  }, [auto]);
 
-  function changeMode(key, value) {
-    setMode((previous) => ({
-      ...previous,
-      [key]: value
-    }));
-  }
+  const filteredCoins = useMemo(() => {
+    const q = search.trim().toLowerCase();
 
-  function ModeControl({ title, modeKey }) {
-    return (
-      <div className="mode-control">
-        <span>{title}</span>
-        <div className="mode-buttons">
-          {['OFF', 'MANUAL', 'AUTO'].map((item) => (
-            <button
-              key={item}
-              type="button"
-              className={mode[modeKey] === item ? 'selected' : ''}
-              onClick={() => changeMode(modeKey, item)}
-            >
-              {item}
-            </button>
-          ))}
-        </div>
-      </div>
+    if (!q) return coins;
+
+    return coins.filter((coin) =>
+      coin.name.toLowerCase().includes(q) ||
+      coin.symbol.toLowerCase().includes(q)
     );
-  }
+  }, [coins, search]);
 
-  const networkCorrect = Number(chainId) === 56;
+  const accountId = ownerInfo.data?.ID ?? ownerInfo.data?.[0];
 
   return (
-    <main className="app">
-      <header className="header">
+    <main className="app" dir={fa ? 'rtl' : 'ltr'}>
+      <header className="top">
         <div>
-          <h1>Trust Wallet Bot</h1>
-          <p>SmartGlobal Dashboard · BNB Smart Chain</p>
+          <h1>Crypto Explorer</h1>
+          <p>SmartGlobal · BNB Smart Chain</p>
         </div>
-        <span className="network-badge">
-          {networkCorrect ? '● BNB Chain' : '● بررسی شبکه'}
-        </span>
+
+        <button
+          className="language"
+          onClick={() => setLanguage(fa ? 'en' : 'fa')}
+        >
+          {fa ? 'English' : 'دری'}
+        </button>
       </header>
 
-      <section className="panel">
-        <h2>اتصال کیف پول</h2>
+      <section className="hero">
+        <h2>{t('بازار ارزهای دیجیتال', 'Crypto Market')}</h2>
+        <p>
+          {t(
+            'قیمت‌ها، تغییرات بازار و بررسی ارزها',
+            'Prices, market changes and coin research'
+          )}
+        </p>
 
-        <button
-          className="primary-button"
-          type="button"
-          onClick={() => open()}
-        >
-          {isConnected ? 'مدیریت اتصال کیف پول' : 'اتصال کیف پول'}
-        </button>
-
-        <InfoRow
-          label="وضعیت اتصال"
-          value={isConnected ? 'متصل است' : 'متصل نیست'}
-        />
-
-        <InfoRow
-          label="آدرس کیف پول"
-          value={address || '—'}
-        />
-
-        <InfoRow
-          label="شناسه شبکه"
-          value={chainId ?? '—'}
-        />
-
-        {isConnected && !networkCorrect && (
-          <p className="warning">
-            لطفاً شبکه کیف پول را روی BNB Smart Chain قرار دهید.
-          </p>
-        )}
-      </section>
-
-      <section className="panel">
-        <h2>موجودی دارایی‌ها</h2>
-
-        <div className="balances">
-          <BalanceCard
-            title="BNB"
-            value={bnbBalance.data
-              ? fmt(bnbBalance.data.value, bnbBalance.data.decimals)
-              : '—'}
-            symbol="🟡"
-          />
-
-          <BalanceCard
-            title="USDT"
-            value={usdtBalance.data !== undefined
-              ? fmt(usdtBalance.data, 18)
-              : '—'}
-            symbol="💵"
-          />
-
-          <BalanceCard
-            title="SGT"
-            value={sgtBalance.data !== undefined
-              ? fmt(sgtBalance.data, 18)
-              : '—'}
-            symbol="🪙"
-          />
+        <div className="hero-buttons">
+          <button onClick={() => setTab('market')}>
+            {t('بازار', 'Market')}
+          </button>
+          <button onClick={() => setTab('wallet')}>
+            {t('کیف پول', 'Wallet')}
+          </button>
+          <button onClick={() => setTab('smart')}>
+            SmartGlobal
+          </button>
         </div>
       </section>
 
+      {tab === 'market' && (
+        <section className="panel">
+          <div className="section-heading">
+            <h2>{t('قیمت ارزها', 'Cryptocurrency Prices')}</h2>
+            <button onClick={loadMarket} disabled={loading}>
+              {loading ? '...' : t('تازه‌سازی', 'Refresh')}
+            </button>
+          </div>
+
+          <input
+            className="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={t('نام یا نماد ارز را جستجو کن', 'Search coin name or symbol')}
+          />
+
+          <label className="auto-control">
+            <input
+              type="checkbox"
+              checked={auto}
+              onChange={(e) => setAuto(e.target.checked)}
+            />
+            {t('تازه‌سازی خودکار هر ۶۰ ثانیه', 'Auto refresh every 60 seconds')}
+          </label>
+
+          {marketError && (
+            <p className="error">{marketError}</p>
+          )}
+
+          {loading && coins.length === 0 && (
+            <p>{t('در حال دریافت قیمت‌ها...', 'Loading market data...')}</p>
+          )}
+
+          <div className="coin-list">
+            {filteredCoins.map((coin) => (
+              <div className="coin" key={coin.id}>
+                <img src={coin.image} alt="" />
+                <div className="coin-name">
+                  <strong>{coin.name}</strong>
+                  <small>{coin.symbol.toUpperCase()}</small>
+                </div>
+
+                <div className="coin-price">
+                  <strong>
+                    ${Number(coin.current_price).toLocaleString('en-US')}
+                  </strong>
+                  <small className={
+                    coin.price_change_percentage_24h >= 0
+                      ? 'positive'
+                      : 'negative'
+                  }>
+                    {coin.price_change_percentage_24h == null
+                      ? '—'
+                      : `${coin.price_change_percentage_24h.toFixed(2)}%`}
+                  </small>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {filteredCoins.length === 0 && !loading && (
+            <p>{t('ارزی پیدا نشد.', 'No coins found.')}</p>
+          )}
+
+          <small className="muted">
+            {t('آخرین به‌روزرسانی: ', 'Last update: ')}
+            {lastUpdate || '—'}
+          </small>
+        </section>
+      )}
+
+      {tab === 'wallet' && (
+        <section className="panel">
+          <h2>{t('کیف پول', 'Wallet')}</h2>
+
+          <button className="main-button" onClick={() => open()}>
+            {connected
+              ? t('مدیریت اتصال', 'Manage Connection')
+              : t('اتصال کیف پول', 'Connect Wallet')}
+          </button>
+
+          <Card
+            title={t('وضعیت اتصال', 'Connection')}
+            value={connected
+              ? t('متصل است', 'Connected')
+              : t('متصل نیست', 'Not connected')}
+          />
+
+          <Card title="Address" value={address || '—'} />
+
+          <Card
+            title="Network"
+            value={chainId ?? '—'}
+            subtitle={correctNetwork ? 'BNB Smart Chain' : 'Please select BNB Chain'}
+          />
+
+          {!correctNetwork && connected && (
+            <p className="error">
+              {t('شبکه کیف پول را روی BNB Smart Chain قرار بده.', 'Please switch your wallet to BNB Smart Chain.')}
+            </p>
+          )}
+
+          <div className="cards">
+            <Card
+              title="BNB"
+              value={bnb.data
+                ? money(bnb.data.value, bnb.data.decimals)
+                : '—'}
+            />
+            <Card
+              title="USDT"
+              value={usdt.data !== undefined ? money(usdt.data) : '—'}
+            />
+            <Card
+              title="SGT"
+              value={sgt.data !== undefined ? money(sgt.data) : '—'}
+            />
+          </div>
+
+          <p className="muted">
+            {t(
+              'این بخش فقط موجودی را می‌خواند و هیچ انتقالی انجام نمی‌دهد.',
+              'This section only reads balances. It does not transfer funds.'
+            )}
+          </p>
+        </section>
+      )}
+
+      {tab === 'smart' && (
+        <section className="panel">
+          <h2>SmartGlobal Dashboard</h2>
+
+          <div className="cards">
+            <Card title="Account ID" value={accountId?.toString()} />
+            <Card title="Gift Round" value={giftRound.data?.toString()} />
+            <Card title="Gift List Size" value={giftSize.data?.toString()} />
+            <Card
+              title="Global Token Balance"
+              value={globalTokens.data !== undefined
+                ? money(globalTokens.data)
+                : '—'}
+            />
+            <Card
+              title="Bank USDT Balance"
+              value={bankUsdt.data !== undefined
+                ? money(bankUsdt.data)
+                : '—'}
+            />
+          </div>
+
+          <p className="muted">
+            {t(
+              'اطلاعات قرارداد فقط به شکل خواندنی نمایش داده می‌شود.',
+              'Contract information is displayed in read-only mode.'
+            )}
+          </p>
+        </section>
+      )}
+
       <section className="panel">
-        <h2>اطلاعات حساب SmartGlobal</h2>
-
-        <InfoRow label="شناسه حساب" value={ownerId?.toString()} />
-        <InfoRow label="مجموع سمت چپ" value={totalLeft?.toString()} />
-        <InfoRow label="مجموع سمت راست" value={totalRight?.toString()} />
-        <InfoRow label="سمت چپ فعلی" value={currentLeft?.toString()} />
-        <InfoRow label="سمت راست فعلی" value={currentRight?.toString()} />
-        <InfoRow label="تعداد معرفی مستقیم" value={directsCount?.toString()} />
-      </section>      <section className="panel">
-        <h2>اطلاعات Gift</h2>
-
-        <InfoRow
-          label="دور فعلی Gift"
-          value={currentGiftRound.data?.toString()}
-        />
-        <InfoRow
-          label="اندازه فهرست Gift"
-          value={giftListSize.data?.toString()}
-        />
-        <InfoRow
-          label="مجموع Gift دریافت‌شده (USDT)"
-          value={giftReceived !== undefined ? fmt(giftReceived, 18) : '—'}
-        />
-        <InfoRow
-          label="روزهای گذشته از آخرین Gift"
-          value={daysSinceGift?.toString()}
-        />
-        <InfoRow
-          label="دریافت توکن رایگان"
-          value={freeTokenReceived === undefined ? '—' : freeTokenReceived ? 'بله' : 'خیر'}
-        />
-        <InfoRow
-          label="موجودی توکن جهانی"
-          value={globalTokenBalance.data !== undefined ? fmt(globalTokenBalance.data, 18) : '—'}
-        />
-        <InfoRow
-          label="موجودی USDT قرارداد بانک"
-          value={bankUsdtBalance.data !== undefined ? fmt(bankUsdtBalance.data, 18) : '—'}
-        />
-      </section>
-
-      <section className="panel">
-        <h2>اطلاعات Pay Reward</h2>
-
-        <InfoRow
-          label="وضعیت حساب"
-          value={payOwnerStatus.data === undefined ? '—' : payOwnerStatus.data ? 'فعال' : 'غیرفعال'}
-        />
-        <InfoRow
-          label="امتیازهای حساب"
-          value={payPoints?.toString()}
-        />
-        <InfoRow
-          label="زمان گذشته از آخرین پاداش"
-          value={payLastReward.data !== undefined ? payLastReward.data.toString() : '—'}
-        />
-        <InfoRow
-          label="موجودی قرارداد Pay"
-          value={payContractBalance.data !== undefined ? fmt(payContractBalance.data, 18) : '—'}
-        />
-        <InfoRow
-          label="مجموع پاداش Caller (USDT)"
-          value={callerReward !== undefined ? fmt(callerReward, 18) : '—'}
-        />
-        <InfoRow
-          label="ساعت گذشته از آخرین Caller"
-          value={hoursSinceCaller?.toString()}
-        />
-        <InfoRow
-          label="ساعت گذشته از آخرین خرید"
-          value={hoursSinceBuy?.toString()}
-        />
-        <InfoRow label="Tier 1" value={tier1 === undefined ? '—' : tier1 ? 'Claim شده' : 'Claim نشده'} />
-        <InfoRow label="Tier 2" value={tier2 === undefined ? '—' : tier2 ? 'Claim شده' : 'Claim نشده'} />
-        <InfoRow label="Tier 3" value={tier3 === undefined ? '—' : tier3 ? 'Claim شده' : 'Claim نشده'} />
-        <InfoRow label="Tier 4" value={tier4 === undefined ? '—' : tier4 ? 'Claim شده' : 'Claim نشده'} />
-      </section>
-
-      <section className="panel">
-        <h2>وضعیت پیشنهاد قرارداد</h2>
-
-        <InfoRow label="آدرس هدف" value={proposalTarget || '—'} />
-        <InfoRow label="نوع پیشنهاد" value={proposalType?.toString()} />
-        <InfoRow label="رأی‌های 300" value={proposalVotes300?.toString()} />
-        <InfoRow label="رأی‌های 100" value={proposalVotes100?.toString()} />
-        <InfoRow label="مرحله پیشنهاد" value={proposalStage?.toString()} />
-      </section>
-
-      <section className="panel">
-        <h2>مدیریت حالت‌ها</h2>
-
-        <ModeControl title="حالت Gift" modeKey="gift" />
-        <ModeControl title="حالت Distribute" modeKey="distribute" />
-        <ModeControl title="حالت Pay Reward" modeKey="pay" />
-
-        <p className="warning">
-          AUTO فقط اطلاعات را هر ۳۰ ثانیه تازه می‌کند.
-          هیچ تراکنشی به صورت خودکار ارسال نمی‌شود.
-          برای هر تراکنش باید خودتان در کیف پول تأیید کنید.
+        <h2>{t('ابزارهای تحقیق', 'Research Tools')}</h2>
+        <p>
+          {t(
+            'از جستجو برای یافتن ارزها و بررسی قیمت و ارزش بازار استفاده کن.',
+            'Search coins and review prices and market capitalization.'
+          )}
         </p>
-
-        <InfoRow
-          label="بررسی Distribute"
-          value={
-            distributeSimulation.isLoading
-              ? 'در حال بررسی'
-              : distributeSimulation.error
-                ? 'خطا یا شرایط اجرا فراهم نیست'
-                : distributeSimulation.data
-                  ? 'بررسی شبیه‌سازی موفق'
-                  : 'در انتظار اطلاعات'
-          }
-        />
-
-        <InfoRow
-          label="بررسی Pay Reward"
-          value={
-            payRewardSimulation.isLoading
-              ? 'در حال بررسی'
-              : payRewardSimulation.error
-                ? 'خطا یا شرایط اجرا فراهم نیست'
-                : payRewardSimulation.data
-                  ? 'بررسی شبیه‌سازی موفق'
-                  : 'در انتظار اطلاعات'
-          }
-        />
-      </section> 
-      
-
-     <section className="panel">
-        <h2>به‌روزرسانی اطلاعات</h2>
-
-        <button
-          type="button"
-          className="primary-button"
-          onClick={refreshAll}
-          disabled={refreshing}
-        >
-          {refreshing ? 'در حال به‌روزرسانی...' : 'تازه‌سازی اطلاعات'}
-        </button>
-
-        <InfoRow
-          label="آخرین به‌روزرسانی"
-          value={lastRefresh || 'هنوز انجام نشده'}
-        />
-
-        {notice && <p className="notice">{notice}</p>}
+        <p className="warning">
+          {t(
+            'قیمت‌ها اطلاعات بازار هستند و درآمد یا سود را تضمین نمی‌کنند. قبل از هر معامله تحقیق کن.',
+            'Market data does not guarantee income or profit. Research before trading.'
+          )}
+        </p>
       </section>
 
       <footer>
-        Trust Wallet Bot · SmartGlobal Dashboard
+        Crypto Explorer · Version 2
         <br />
-        فقط نمایش اطلاعات و بررسی خواندنی قرارداد
+        CoinGecko Market Data · BNB Smart Chain
+        <br />
+        Read-only dashboard · No automatic transactions
       </footer>
 
       <style>{`
@@ -680,177 +455,203 @@ export default function App() {
 
         body {
           margin: 0;
-          background: #f1f4f8;
-          font-family: Arial, sans-serif;
+          background: #f1f5f9;
           color: #172033;
+          font-family: Arial, sans-serif;
         }
 
         .app {
-          max-width: 850px;
+          max-width: 900px;
           margin: auto;
-          padding: 18px;
+          padding: 15px;
         }
 
-        .header {
+        .top, .section-heading {
           display: flex;
-          justify-content: space-between;
           align-items: center;
-          flex-wrap: wrap;
+          justify-content: space-between;
           gap: 12px;
-          margin-bottom: 18px;
+          flex-wrap: wrap;
         }
 
-        h1 {
-          margin: 0 0 6px;
+        .top h1 {
+          margin: 0 0 5px;
           font-size: 25px;
         }
 
-        h2 {
-          margin: 0 0 16px;
-          font-size: 19px;
-        }
-
-        .header p {
-          margin: 0;
+        .top p, .muted {
           color: #64748b;
           font-size: 13px;
         }
 
-        .network-badge {
-          background: #e0f2fe;
-          color: #075985;
-          padding: 9px 12px;
-          border-radius: 20px;
-          font-size: 13px;
+        .language, button {
+          border: 0;
+          border-radius: 9px;
+          padding: 10px 14px;
+          background: #1769aa;
+          color: white;
+          cursor: pointer;
+          font-weight: bold;
+        }
+
+        button:disabled {
+          opacity: .5;
+        }
+
+        .hero {
+          background: linear-gradient(130deg, #123b69, #1769aa);
+          color: white;
+          padding: 22px;
+          border-radius: 15px;
+          margin: 18px 0;
+        }
+
+        .hero h2 {
+          margin-top: 0;
+        }
+
+        .hero-buttons {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          margin-top: 18px;
+        }
+
+        .hero-buttons button {
+          background: #ffffff25;
+          border: 1px solid #ffffff70;
         }
 
         .panel {
           background: white;
-          padding: 18px;
           border-radius: 14px;
+          padding: 17px;
           margin-bottom: 16px;
-          box-shadow: 0 2px 9px #0000000c;
+          box-shadow: 0 2px 8px #0000000c;
           overflow-wrap: anywhere;
         }
 
-        .primary-button {
+        .panel h2 {
+          font-size: 19px;
+        }
+
+        .section-heading h2 {
+          margin: 0 0 12px;
+        }
+
+        .search {
           width: 100%;
           padding: 13px;
-          border: 0;
+          border: 1px solid #cbd5e1;
           border-radius: 9px;
-          background: #1769aa;
-          color: white;
           font-size: 15px;
-          font-weight: bold;
-          cursor: pointer;
-          margin-bottom: 14px;
+          margin: 12px 0;
         }
 
-        .primary-button:disabled {
-          opacity: 0.6;
-        }
-
-        .info-row {
+        .auto-control {
           display: flex;
-          justify-content: space-between;
-          gap: 12px;
-          padding: 11px 0;
-          border-bottom: 1px solid #edf0f4;
-          font-size: 14px;
+          align-items: center;
+          gap: 8px;
+          font-size: 13px;
+          margin: 10px 0 16px;
         }
 
-        .info-row span {
-          color: #64748b;
-        }
-
-        .info-row strong {
-          text-align: right;
-          overflow-wrap: anywhere;
-        }
-
-        .balances {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
+        .coin {
+          display: flex;
+          align-items: center;
           gap: 10px;
+          padding: 12px 2px;
+          border-bottom: 1px solid #edf0f4;
         }
 
-        .balance-card {
-          background: #f5f8fc;
-          border-radius: 12px;
-          padding: 14px 8px;
-          text-align: center;
+        .coin img {
+          width: 30px;
+          height: 30px;
+        }
+
+        .coin-name {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          flex: 1;
           min-width: 0;
         }
 
-        .balance-card span {
-          font-size: 22px;
+        .coin-name small, .coin-price small {
+          color: #64748b;
         }
 
-        .balance-title {
-          margin: 8px 0;
-          color: #64748b;
+        .coin-price {
+          display: flex;
+          flex-direction: column;
+          text-align: end;
+          gap: 4px;
           font-size: 13px;
         }
 
-        .balance-card strong {
+        .positive {
+          color: #159447 !important;
+        }
+
+        .negative {
+          color: #dc3545 !important;
+        }
+
+        .cards {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 10px;
+          margin: 15px 0;
+        }
+
+        .card {
+          background: #f5f8fc;
+          border-radius: 10px;
+          padding: 14px;
+          min-width: 0;
+          margin-bottom: 9px;
           overflow-wrap: anywhere;
         }
 
-        .mode-control {
-          padding: 13px 0;
-          border-bottom: 1px solid #edf0f4;
-        }
-
-        .mode-control > span {
+        .card-value {
           display: block;
-          margin-bottom: 10px;
-          font-weight: bold;
+          font-size: 18px;
+          margin: 8px 0;
         }
 
-        .mode-buttons {
-          display: flex;
-          gap: 8px;
+        .card small {
+          color: #64748b;
         }
 
-        .mode-buttons button {
-          flex: 1;
-          padding: 9px 4px;
-          border: 1px solid #cbd5e1;
-          border-radius: 8px;
-          background: white;
-          color: #334155;
-          cursor: pointer;
-        }
-
-        .mode-buttons button.selected {
-          background: #1769aa;
-          color: white;
-          border-color: #1769aa;
+        .main-button {
+          width: 100%;
+          margin: 10px 0;
         }
 
         .warning {
           background: #fff7e6;
           color: #8a5700;
+          border-radius: 9px;
           padding: 12px;
-          border-radius: 8px;
-          font-size: 13px;
           line-height: 1.8;
+          font-size: 13px;
         }
 
-        .notice {
-          background: #e8f7ed;
-          color: #176b35;
-          padding: 11px;
+        .error {
+          color: #b42318;
+          background: #fff0ef;
           border-radius: 8px;
+          padding: 10px;
           font-size: 13px;
+          overflow-wrap: anywhere;
         }
 
         footer {
           text-align: center;
           color: #64748b;
           font-size: 12px;
-          padding: 18px 5px;
-          line-height: 1.8;
+          line-height: 1.9;
+          padding: 20px 5px;
         }
 
         @media(max-width: 500px) {
@@ -862,23 +663,15 @@ export default function App() {
             padding: 13px;
           }
 
-          .balances {
+          .cards {
             grid-template-columns: 1fr 1fr;
           }
 
-          .info-row {
-            font-size: 13px;
+          .coin-price {
+            font-size: 12px;
           }
         }
       `}</style>
     </main>
   );
 }
-<InfoRow
-  label="وضعیت خواندن اطلاعات"
-  value={bankOwnerInfo.status}
-/>
-<InfoRow
-  label="خطای قرارداد"
-  value={bankOwnerInfo.error ? getErrorMessage(bankOwnerInfo.error) : 'بدون خطا'}
-/>
