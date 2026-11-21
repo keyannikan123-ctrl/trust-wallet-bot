@@ -1,7 +1,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { useAppKit, useAppKitAccount } from '@reown/appkit/react';
-import { useBalance, useReadContract } from 'wagmi';
+import { useBalance, useReadContract, useSimulateContract } from 'wagmi';
 import { formatUnits } from 'viem';
 
 const API = 'https://crypto-explorer-api.keyannikan123.workers.dev/api/v3';
@@ -51,6 +51,7 @@ const bankAbi = [
       { name: 'tier4', type: 'bool' }
     ]
   },
+  { type: 'function', name: 'distributeBank', stateMutability: 'nonpayable', inputs: [], outputs: [] },
   {
     type: 'function', name: 'giftInfo', stateMutability: 'view',
     inputs: [{ name: 'account', type: 'address' }],
@@ -63,6 +64,7 @@ const bankAbi = [
 ];
 
 const payAbi = [
+  { type: 'function', name: 'payReward', stateMutability: 'nonpayable', inputs: [], outputs: [] },
   { type: 'function', name: 'ownerStatus', stateMutability: 'view', inputs: [{ name: 'account', type: 'address' }], outputs: [{ type: 'bool' }] },
   { type: 'function', name: 'ownerAllPoint', stateMutability: 'view', inputs: [{ name: 'account', type: 'address' }], outputs: [{ type: 'uint256' }] },
   { type: 'function', name: 'lastRewardTimePassed', stateMutability: 'view', inputs: [{ name: 'account', type: 'address' }], outputs: [{ type: 'uint256' }] },
@@ -109,6 +111,21 @@ export default function App() {
   const [auto, setAuto] = useState(false);
   const [language, setLanguage] = useState('fa');
 
+  const [modes, setModes] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('smartglobal-modes') || '{}');
+      return {
+        gift: ['OFF', 'MANUAL', 'AUTO'].includes(saved.gift) ? saved.gift : 'MANUAL',
+        distribute: ['OFF', 'MANUAL', 'AUTO'].includes(saved.distribute) ? saved.distribute : 'MANUAL',
+        pay: ['OFF', 'MANUAL', 'AUTO'].includes(saved.pay) ? saved.pay : 'MANUAL'
+      };
+    } catch {
+      return { gift: 'MANUAL', distribute: 'MANUAL', pay: 'MANUAL' };
+    }
+  });
+
+  const [lastSmartRefresh, setLastSmartRefresh] = useState(null);
+
   const [alerts, setAlerts] = useState(() => {
     try { return JSON.parse(localStorage.getItem('ce-alerts') || '[]'); }
     catch { return []; }
@@ -117,14 +134,14 @@ export default function App() {
   const [alertCoin, setAlertCoin] = useState('bitcoin');
   const [alertPrice, setAlertPrice] = useState('');
 
-  // خواندن موجودی BNB روی شبکه اصلی BNB Smart Chain
+  const autoSmart = Object.values(modes).includes('AUTO');
+
   const { data: bnbBalance, isLoading: bnbLoading, isError: bnbError } = useBalance({
     address,
     chainId: 56,
     query: { enabled: !!address, retry: 2, refetchInterval: 30000 }
   });
 
-  // خواندن موجودی USDT
   const { data: usdtBalance, isLoading: usdtLoading, isError: usdtError } = useReadContract({
     address: USDT,
     abi: erc20Abi,
@@ -134,7 +151,6 @@ export default function App() {
     query: { enabled: !!address, retry: 2, refetchInterval: 30000 }
   });
 
-  // خواندن موجودی SGT
   const { data: sgtBalance, isLoading: sgtLoading, isError: sgtError } = useReadContract({
     address: SGT,
     abi: erc20Abi,
@@ -145,19 +161,23 @@ export default function App() {
   });
 
   const { data: giftRound } = useReadContract({
-    address: BANK, abi: bankAbi, functionName: '_currentGiftRound', chainId: 56
+    address: BANK, abi: bankAbi, functionName: '_currentGiftRound', chainId: 56,
+    query: { refetchInterval: autoSmart ? 30000 : false }
   });
 
   const { data: giftListSize } = useReadContract({
-    address: BANK, abi: bankAbi, functionName: 'giftListSize', chainId: 56
+    address: BANK, abi: bankAbi, functionName: 'giftListSize', chainId: 56,
+    query: { refetchInterval: autoSmart ? 30000 : false }
   });
 
   const { data: globalTokenBalance } = useReadContract({
-    address: BANK, abi: bankAbi, functionName: 'globalTokenBalance', chainId: 56
+    address: BANK, abi: bankAbi, functionName: 'globalTokenBalance', chainId: 56,
+    query: { refetchInterval: autoSmart ? 30000 : false }
   });
 
   const { data: bankUsdt } = useReadContract({
-    address: BANK, abi: bankAbi, functionName: 'usdtBalance', chainId: 56
+    address: BANK, abi: bankAbi, functionName: 'usdtBalance', chainId: 56,
+    query: { refetchInterval: autoSmart ? 30000 : false }
   });
 
   const { data: ownerInfo } = useReadContract({
@@ -166,7 +186,7 @@ export default function App() {
     functionName: 'ownerInfo',
     args: [address],
     chainId: 56,
-    query: { enabled: !!address, retry: 2, refetchInterval: 30000 }
+    query: { enabled: !!address, retry: 2, refetchInterval: autoSmart ? 30000 : false }
   });
 
   const ownerId = ownerInfo?.[0];
@@ -178,7 +198,8 @@ export default function App() {
     args: ownerId !== undefined ? [ownerId] : undefined,
     chainId: 56,
     query: {
-      enabled: ownerId !== undefined && BigInt(ownerId) > 0n
+      enabled: ownerId !== undefined && BigInt(ownerId) > 0n,
+      refetchInterval: autoSmart ? 30000 : false
     }
   });
 
@@ -188,7 +209,7 @@ export default function App() {
     functionName: 'giftInfo',
     args: [address],
     chainId: 56,
-    query: { enabled: !!address }
+    query: { enabled: !!address, refetchInterval: autoSmart ? 30000 : false }
   });
 
   const { data: payStatus } = useReadContract({
@@ -197,7 +218,7 @@ export default function App() {
     functionName: 'ownerStatus',
     args: [address],
     chainId: 56,
-    query: { enabled: !!address }
+    query: { enabled: !!address, refetchInterval: autoSmart ? 30000 : false }
   });
 
   const { data: payPoints } = useReadContract({
@@ -206,7 +227,7 @@ export default function App() {
     functionName: 'ownerAllPoint',
     args: [address],
     chainId: 56,
-    query: { enabled: !!address }
+    query: { enabled: !!address, refetchInterval: autoSmart ? 30000 : false }
   });
 
   const { data: rewardHours } = useReadContract({
@@ -215,14 +236,33 @@ export default function App() {
     functionName: 'lastRewardTimePassed',
     args: [address],
     chainId: 56,
-    query: { enabled: !!address }
+    query: { enabled: !!address, refetchInterval: autoSmart ? 30000 : false }
   });
 
   const { data: payBalance } = useReadContract({
     address: PAY,
     abi: payAbi,
     functionName: 'justContractBalance',
-    chainId: 56
+    chainId: 56,
+    query: { refetchInterval: autoSmart ? 30000 : false }
+  });
+
+  const distributeSimulation = useSimulateContract({
+    address: BANK,
+    abi: bankAbi,
+    functionName: 'distributeBank',
+    account: address,
+    chainId: 56,
+    query: { enabled: !!address && modes.distribute !== 'OFF' }
+  });
+
+  const paySimulation = useSimulateContract({
+    address: PAY,
+    abi: payAbi,
+    functionName: 'payReward',
+    account: address,
+    chainId: 56,
+    query: { enabled: !!address && modes.pay !== 'OFF' }
   });
 
   const loadMarket = async () => {
@@ -259,6 +299,18 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('ce-alerts', JSON.stringify(alerts));
   }, [alerts]);
+
+  useEffect(() => {
+    localStorage.setItem('smartglobal-modes', JSON.stringify(modes));
+  }, [modes]);
+
+  useEffect(() => {
+    if (!autoSmart) return;
+    const timer = setInterval(() => {
+      setLastSmartRefresh(new Date().toLocaleTimeString());
+    }, 30000);
+    return () => clearInterval(timer);
+  }, [autoSmart]);
 
   const shownCoins = useMemo(() => {
     let list = tab === 'favorites'
@@ -701,6 +753,8 @@ export default function App() {
                 <div className="stats">
                   <Stat label={t.left} value={ownerInfo?.[1]?.toString()} />
                   <Stat label={t.right} value={ownerInfo?.[2]?.toString()} />
+                  <Stat label={language === 'fa' ? 'چپ فعلی' : 'Current left'} value={ownerInfo?.[3]?.toString()} />
+                  <Stat label={language === 'fa' ? 'راست فعلی' : 'Current right'} value={ownerInfo?.[4]?.toString()} />
                   <Stat label={t.directs} value={ownerInfo?.[5]?.toString()} />
                 </div>
               </>
@@ -709,14 +763,8 @@ export default function App() {
 
           <Panel title={t.gift}>
             <div className="stats">
-              <Stat
-                label={t.giftReceived}
-                value={bankInfo?.[0]?.toString() ?? giftInfo?.[0]?.toString()}
-              />
-              <Stat
-                label="Free Token"
-                value={bankInfo?.[2] === undefined ? '—' : bankInfo[2] ? 'Yes' : 'No'}
-              />
+              <Stat label={t.giftReceived} value={bankInfo?.[0]?.toString() ?? giftInfo?.[0]?.toString()} />
+              <Stat label="Free Token" value={bankInfo?.[2] === undefined ? '—' : bankInfo[2] ? 'Yes' : 'No'} />
               <Stat label="Caller Reward" value={bankInfo?.[3]?.toString()} />
               <Stat label="Days since Gift" value={bankInfo?.[1]?.toString()} />
             </div>
@@ -724,16 +772,54 @@ export default function App() {
 
           <Panel title={t.pay}>
             <div className="stats">
-              <Stat
-                label={t.rewardStatus}
-                value={payStatus === undefined ? '—' : payStatus ? 'Yes' : 'No'}
-              />
+              <Stat label={t.rewardStatus} value={payStatus === undefined ? '—' : payStatus ? 'Yes' : 'No'} />
               <Stat label={t.points} value={payPoints?.toString()} />
               <Stat label={t.hours} value={rewardHours?.toString()} />
               <Stat label={t.payBalance} value={val(payBalance, 18)} />
             </div>
 
             <div className="notice">{t.warning}</div>
+          </Panel>
+
+          <Panel title={language === 'fa' ? 'مدیریت حالت‌های SmartGlobal' : 'SmartGlobal Mode Controls'}>
+            {[
+              ['gift', language === 'fa' ? 'حالت Gift' : 'Gift mode'],
+              ['distribute', 'Distribute'],
+              ['pay', 'Pay Reward']
+            ].map(([key, label]) => (
+              <div className="rowline" key={key} style={{ alignItems: 'center', flexWrap: 'wrap' }}>
+                <strong>{label}</strong>
+                <div className="controls" style={{ margin: 0 }}>
+                  {['OFF', 'MANUAL', 'AUTO'].map(mode => (
+                    <button
+                      key={mode}
+                      className={modes[key] === mode ? 'primary' : ''}
+                      onClick={() => setModes(old => ({ ...old, [key]: mode }))}
+                    >{mode}</button>
+                  ))}
+                </div>
+              </div>
+            ))}
+
+            <div className="notice">
+              {language === 'fa'
+                ? 'AUTO فقط اطلاعات خواندنی قرارداد را هر ۳۰ ثانیه تازه می‌کند و هیچ تراکنشی نمی‌فرستد. MANUAL در این نسخه فقط حالت بررسی است؛ اجرای تراکنش تا بررسی کامل روش قرارداد و ایمنی آن فعال نشده است.'
+                : 'AUTO refreshes read-only contract data every 30 seconds and never sends transactions. MANUAL is review-only in this version; transaction execution remains disabled until contract methods and safety are verified.'}
+            </div>
+
+            <div className="rowline">
+              <span>{language === 'fa' ? 'شبیه‌سازی Distribute' : 'Distribute simulation'}</span>
+              <strong>{!isConnected ? '—' : distributeSimulation.isLoading ? 'Checking…' : distributeSimulation.error ? 'Not ready / error' : distributeSimulation.data ? 'Simulation passed' : 'Waiting'}</strong>
+            </div>
+
+            <div className="rowline">
+              <span>{language === 'fa' ? 'شبیه‌سازی Pay Reward' : 'Pay Reward simulation'}</span>
+              <strong>{!isConnected ? '—' : paySimulation.isLoading ? 'Checking…' : paySimulation.error ? 'Not ready / error' : paySimulation.data ? 'Simulation passed' : 'Waiting'}</strong>
+            </div>
+
+            <div className="muted">
+              {language === 'fa' ? 'آخرین نوبت AUTO: ' : 'Last AUTO cycle: '}{lastSmartRefresh || '—'}
+            </div>
           </Panel>
 
           <div className="notice">{t.safe}</div>
