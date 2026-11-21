@@ -1,3 +1,4 @@
+
 import React, { useEffect, useMemo, useState } from 'react';
 import { useAppKit, useAppKitAccount } from '@reown/appkit/react';
 import { useBalance, useReadContract } from 'wagmi';
@@ -116,27 +117,31 @@ export default function App() {
   const [alertCoin, setAlertCoin] = useState('bitcoin');
   const [alertPrice, setAlertPrice] = useState('');
 
-  const { data: bnbBalance } = useBalance({
+  // خواندن موجودی BNB روی شبکه اصلی BNB Smart Chain
+  const { data: bnbBalance, isLoading: bnbLoading, isError: bnbError } = useBalance({
     address,
-    query: { enabled: !!address }
+    chainId: 56,
+    query: { enabled: !!address, retry: 2, refetchInterval: 30000 }
   });
 
-  const { data: usdtBalance } = useReadContract({
+  // خواندن موجودی USDT
+  const { data: usdtBalance, isLoading: usdtLoading, isError: usdtError } = useReadContract({
     address: USDT,
     abi: erc20Abi,
     functionName: 'balanceOf',
     args: [address],
     chainId: 56,
-    query: { enabled: !!address }
+    query: { enabled: !!address, retry: 2, refetchInterval: 30000 }
   });
 
-  const { data: sgtBalance } = useReadContract({
+  // خواندن موجودی SGT
+  const { data: sgtBalance, isLoading: sgtLoading, isError: sgtError } = useReadContract({
     address: SGT,
     abi: erc20Abi,
     functionName: 'balanceOf',
     args: [address],
     chainId: 56,
-    query: { enabled: !!address }
+    query: { enabled: !!address, retry: 2, refetchInterval: 30000 }
   });
 
   const { data: giftRound } = useReadContract({
@@ -161,7 +166,7 @@ export default function App() {
     functionName: 'ownerInfo',
     args: [address],
     chainId: 56,
-    query: { enabled: !!address }
+    query: { enabled: !!address, retry: 2, refetchInterval: 30000 }
   });
 
   const ownerId = ownerInfo?.[0];
@@ -657,9 +662,9 @@ export default function App() {
               </div>
 
               <div className="stats" style={{ marginTop: 14 }}>
-                <Stat label={t.bnb} value={bnbBalance ? `${money(bnbBalance.formatted)} BNB` : '—'} />
-                <Stat label={t.usdt} value={val(usdtBalance, 18)} />
-                <Stat label={t.sgt} value={val(sgtBalance, 18)} />
+                <Stat label={t.bnb} value={bnbLoading ? t.loading : bnbBalance ? `${money(bnbBalance.formatted)} BNB` : bnbError ? 'خطای خواندن شبکه' : '—'} />
+                <Stat label={t.usdt} value={usdtLoading ? t.loading : usdtBalance === undefined ? (usdtError ? 'خطای خواندن' : '—') : val(usdtBalance, 18)} />
+                <Stat label={t.sgt} value={sgtLoading ? t.loading : sgtBalance === undefined ? (sgtError ? 'خطای خواندن' : '—') : val(sgtBalance, 18)} />
               </div>
             </>
           )}
@@ -740,4 +745,4 @@ export default function App() {
       </footer>
     </div>
   );
-        }
+}
