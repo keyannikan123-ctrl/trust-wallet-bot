@@ -1,0 +1,121 @@
+
+export const erc20Abi = [
+  {
+    type: 'function',
+    name: 'balanceOf',
+    stateMutability: 'view',
+    inputs: [{ name: 'account', type: 'address' }],
+    outputs: [{ type: 'uint256' }],
+  },
+];
+
+export const bankAbi = [
+  {
+    type: 'function',
+    name: '_currentGiftRound',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ type: 'uint256' }],
+  },
+  {
+    type: 'function',
+    name: 'giftListSize',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ type: 'uint256' }],
+  },
+  {
+    type: 'function',
+    name: 'globalTokenBalance',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ type: 'uint256' }],
+  },
+  {
+    type: 'function',
+    name: 'usdtBalance',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ type: 'uint256' }],
+  },
+  {
+    type: 'function',
+    name: 'ownerInfo',
+    stateMutability: 'view',
+    inputs: [{ name: 'owner', type: 'address' }],
+    outputs: [
+      { name: 'ID', type: 'uint64' },
+      { name: 'Total_Left', type: 'uint32' },
+      { name: 'Total_Right', type: 'uint32' },
+      { name: 'Current_Left', type: 'uint32' },
+      { name: 'Current_Right', type: 'uint32' },
+      { name: 'Directs_Count', type: 'uint8' },
+      { name: 'Is_Right_Side', type: 'bool' },
+      { name: 'UpLine_Address', type: 'address' },
+      { name: 'Left_Address', type: 'address' },
+      { name: 'Right_Address', type: 'address' },
+    ],
+  },
+  {
+    type: 'function',
+    name: 'ownerBankInfo',
+    stateMutability: 'view',
+    inputs: [{ name: 'id', type: 'uint64' }],
+    outputs: [
+      { name: 'Total_Gift_Received_USDT', type: 'uint256' },
+      { name: 'Days_Passed_Since_Last_Gift', type: 'uint256' },
+      { name: 'Has_Received_Free_Token', type: 'bool' },
+      { name: 'Caller_Reward_Total_USDT', type: 'uint256' },
+      { name: 'Hours_Passed_Since_Last_Caller', type: 'uint256' },
+      { name: 'Hours_Passed_Since_Last_Buy', type: 'uint256' },
+      { name: 'Claimed_Tier_1_Reward', type: 'bool' },
+      { name: 'Claimed_Tier_2_Reward', type: 'bool' },
+      { name: 'Claimed_Tier_3_Reward', type: 'bool' },
+      { name: 'Claimed_Tier_4_Reward', type: 'bool' },
+    ],
+  },
+  {
+    type: 'function',
+    name: 'currentProposalStatus',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [
+      { name: 'target', type: 'address' },
+      { name: 'pType', type: 'uint8' },
+      { name: 'votes300', type: 'uint256' },
+      { name: 'votes100', type: 'uint256' },
+      { name: 'stage', type: 'uint8' },
+    ],
+  },
+];
+
+export const payAbi = [
+  {
+    type: 'function',
+    name: 'ownerStatus',
+    stateMutability: 'view',
+    inputs: [{ name: 'userAddress', type: 'address' }],
+    outputs: [{ type: 'bool' }],
+  },
+  {
+    type: 'function',
+    name: 'ownerAllPoint',
+    stateMutability: 'view',
+    inputs: [{ name: 'owner', type: 'address' }],
+    outputs: [{ type: 'uint32' }],
+  },
+  {
+    type: 'function',
+    name: 'lastRewardTimePassed',
+    stateMutability: 'view',
+    inputs: [{ name: 'owner', type: 'address' }],
+    outputs: [{ type: 'uint256' }],
+  },
+  {
+    type: 'function',
+    name: 'justContractBalance',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ type: 'uint256' }],
+  },
+];
