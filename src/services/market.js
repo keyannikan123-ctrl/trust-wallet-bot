@@ -121,7 +121,7 @@ export async function fetchMarketCoins() {
   );
 }
 
-// جستجوی CoinGecko همراه با دریافت قیمت واقعی
+// جستجوی CoinGecko همراه با تلاش جداگانه برای دریافت قیمت
 async function searchCoinGecko(query) {
   const data = await getJSON(
     `${API}/search?query=${encodeURIComponent(query)}`
@@ -137,16 +137,52 @@ async function searchCoinGecko(query) {
 
   let marketMap = new Map();
 
+  // ابتدا دریافت گروهی قیمت‌ها
   try {
     const marketData = await getJSON(
       `${API}/coins/markets?vs_currency=usd&ids=${encodeURIComponent(ids.join(','))}&sparkline=true&price_change_percentage=24h`
     );
 
-    marketMap = new Map(
-      marketData.map(coin => [coin.id, coin])
-    );
+    if (Array.isArray(marketData)) {
+      marketMap = new Map(
+        marketData.map(coin => [coin.id, coin])
+      );
+    }
   } catch (error) {
-    // اگر دریافت قیمت ناموفق شد، نتایج جستجو حذف نمی‌شوند.
+    // در صورت خطا، تلاش جداگانه انجام می‌شود.
+  }
+
+  // اگر قیمت بعضی ارزها نیامده باشد، برای ۸ نتیجهٔ اول جداگانه درخواست می‌فرستیم.
+  const missingPriceCoins = coins
+    .filter(coin => {
+      const price = marketMap.get(coin.id)?.current_price;
+      return price == null || !Number.isFinite(Number(price));
+    })
+    .slice(0, 8);
+
+  const individualResults = await Promise.allSettled(
+    missingPriceCoins.map(async coin => {
+      const rows = await getJSON(
+        `${API}/coins/markets?vs_currency=usd&ids=${encodeURIComponent(coin.id)}&sparkline=true&price_change_percentage=24h`
+      );
+
+      return {
+        id: coin.id,
+        market: Array.isArray(rows) ? rows[0] : null,
+      };
+    })
+  );
+
+  for (const result of individualResults) {
+    if (
+      result.status === 'fulfilled' &&
+      result.value.market
+    ) {
+      marketMap.set(
+        result.value.id,
+        result.value.market
+      );
+    }
   }
 
   return coins.map(coin => {
