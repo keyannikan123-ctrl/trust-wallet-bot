@@ -79,10 +79,6 @@ async function fetchBinanceMarket() {
     )
     .slice(0, 50);
 
-  if (!rows.length) {
-    throw new Error('جفت‌های معاملاتی پیدا نشد');
-  }
-
   return rows.map((item, index) => {
     const symbol = item.symbol.replace(/USDT$/, '');
 
@@ -121,28 +117,62 @@ export async function fetchMarketCoins() {
   }
 
   throw new Error(
-    'هیچ منبع قیمت در دسترس نیست. اینترنت را بررسی کنید. ' +
-    errors.join(' | ')
+    'هیچ منبع قیمت در دسترس نیست. ' + errors.join(' | ')
   );
 }
 
+// جستجوی CoinGecko همراه با دریافت قیمت واقعی
 async function searchCoinGecko(query) {
   const data = await getJSON(
     `${API}/search?query=${encodeURIComponent(query)}`
   );
 
-  return (data.coins || []).map(coin => ({
-    id: `cg:${coin.id}`,
-    kind: 'coingecko',
-    source: 'CoinGecko',
-    name: coin.name,
-    symbol: coin.symbol,
-    image: coin.thumb,
-    coinId: coin.id,
-    market_cap_rank: coin.market_cap_rank,
-    chainId: null,
-    network: 'CoinGecko',
-  }));
+  const coins = data.coins || [];
+
+  if (!coins.length) return [];
+
+  const ids = coins
+    .map(coin => coin.id)
+    .filter(Boolean);
+
+  let marketMap = new Map();
+
+  try {
+    const marketData = await getJSON(
+      `${API}/coins/markets?vs_currency=usd&ids=${encodeURIComponent(ids.join(','))}&sparkline=true&price_change_percentage=24h`
+    );
+
+    marketMap = new Map(
+      marketData.map(coin => [coin.id, coin])
+    );
+  } catch (error) {
+    // اگر دریافت قیمت ناموفق شد، نتایج جستجو حذف نمی‌شوند.
+  }
+
+  return coins.map(coin => {
+    const market = marketMap.get(coin.id) || {};
+
+    return {
+      ...market,
+      id: `cg:${coin.id}`,
+      kind: 'coingecko',
+      source: 'CoinGecko',
+      name: coin.name,
+      symbol: coin.symbol,
+      image: market.image || coin.thumb,
+      coinId: coin.id,
+      market_cap_rank:
+        market.market_cap_rank || coin.market_cap_rank,
+      current_price: market.current_price ?? null,
+      price_change_percentage_24h:
+        market.price_change_percentage_24h ?? null,
+      market_cap: market.market_cap ?? null,
+      total_volume: market.total_volume ?? null,
+      sparkline_in_7d: market.sparkline_in_7d || null,
+      chainId: null,
+      network: 'CoinGecko',
+    };
+  });
 }
 
 async function searchDexScreener(query) {
@@ -211,6 +241,17 @@ function removeDuplicates(items, query) {
     if (aAddress === q && bAddress !== q) return -1;
     if (bAddress === q && aAddress !== q) return 1;
 
+    const aExact =
+      a.name?.toLowerCase() === q ||
+      a.symbol?.toLowerCase() === q;
+
+    const bExact =
+      b.name?.toLowerCase() === q ||
+      b.symbol?.toLowerCase() === q;
+
+    if (aExact && !bExact) return -1;
+    if (bExact && !aExact) return 1;
+
     const aRank = Number(a.market_cap_rank) || Infinity;
     const bRank = Number(b.market_cap_rank) || Infinity;
 
@@ -241,9 +282,7 @@ export async function searchMarketAssets(query) {
       : [];
 
   if (results.every(result => result.status === 'rejected')) {
-    throw new Error(
-      'سرویس‌های جستجو در دسترس نیستند؛ کمی بعد دوباره تلاش کنید'
-    );
+    throw new Error('سرویس‌های جستجو در دسترس نیستند');
   }
 
   return removeDuplicates(
