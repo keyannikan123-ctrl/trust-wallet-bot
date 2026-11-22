@@ -1,92 +1,973 @@
-import React,{useEffect,useMemo,useState} from 'react';
-import {useAppKit,useAppKitAccount,useAppKitNetwork} from '@reown/appkit/react';
-import {useBalance,useReadContract,useSimulateContract} from 'wagmi';
-import {formatUnits} from 'viem';
 
-const API='https://api.coingecko.com/api/v3';
-const BANK='0x7a4f5d605e88831e3eb3f9630029ff008d00e4d0';
-const PAY='0x6bd7671ec2b11dc32f204641d67084977e5c81f9';
-const SGT='0x227c706300ad4df617358e51de443c6dc466353e';
-const USDT='0x55d398326f99059ff775485246999027b3197955';
-const erc20=[{type:'function',name:'balanceOf',stateMutability:'view',inputs:[{name:'account',type:'address'}],outputs:[{type:'uint256'}]}];
-const bank=[
-{type:'function',name:'_currentGiftRound',stateMutability:'view',inputs:[],outputs:[{type:'uint256'}]},
-{type:'function',name:'giftListSize',stateMutability:'view',inputs:[],outputs:[{type:'uint256'}]},
-{type:'function',name:'globalTokenBalance',stateMutability:'view',inputs:[],outputs:[{type:'uint256'}]},
-{type:'function',name:'usdtBalance',stateMutability:'view',inputs:[],outputs:[{type:'uint256'}]},
-{type:'function',name:'ownerInfo',stateMutability:'view',inputs:[{name:'owner',type:'address'}],outputs:[{name:'ID',type:'uint64'},{name:'Total_Left',type:'uint32'},{name:'Total_Right',type:'uint32'},{name:'Current_Left',type:'uint32'},{name:'Current_Right',type:'uint32'},{name:'Directs_Count',type:'uint8'},{name:'Is_Right_Side',type:'bool'},{name:'UpLine_Address',type:'address'},{name:'Left_Address',type:'address'},{name:'Right_Address',type:'address'}]},
-{type:'function',name:'ownerBankInfo',stateMutability:'view',inputs:[{name:'id',type:'uint64'}],outputs:[{name:'Total_Gift_Received_USDT',type:'uint256'},{name:'Days_Passed_Since_Last_Gift',type:'uint256'},{name:'Has_Received_Free_Token',type:'bool'},{name:'Caller_Reward_Total_USDT',type:'uint256'},{name:'Hours_Passed_Since_Last_Caller',type:'uint256'},{name:'Hours_Passed_Since_Last_Buy',type:'uint256'},{name:'Claimed_Tier_1_Reward',type:'bool'},{name:'Claimed_Tier_2_Reward',type:'bool'},{name:'Claimed_Tier_3_Reward',type:'bool'},{name:'Claimed_Tier_4_Reward',type:'bool'}]},
-{type:'function',name:'currentProposalStatus',stateMutability:'view',inputs:[],outputs:[{name:'target',type:'address'},{name:'pType',type:'uint8'},{name:'votes300',type:'uint256'},{name:'votes100',type:'uint256'},{name:'stage',type:'uint8'}]},
-{type:'function',name:'distributeBank',stateMutability:'nonpayable',inputs:[],outputs:[]}];
-const pay=[
-{type:'function',name:'payReward',stateMutability:'nonpayable',inputs:[],outputs:[]},
-{type:'function',name:'ownerStatus',stateMutability:'view',inputs:[{name:'userAddress',type:'address'}],outputs:[{type:'bool'}]},
-{type:'function',name:'ownerAllPoint',stateMutability:'view',inputs:[{name:'owner',type:'address'}],outputs:[{type:'uint32'}]},
-{type:'function',name:'lastRewardTimePassed',stateMutability:'view',inputs:[{name:'owner',type:'address'}],outputs:[{type:'uint256'}]},
-{type:'function',name:'justContractBalance',stateMutability:'view',inputs:[],outputs:[{type:'uint256'}]}];
-const num=(v,d=2)=>Number.isFinite(Number(v))?Number(v).toLocaleString('en-US',{maximumFractionDigits:d}):'â€”';
-const usd=v=>'$'+num(v,Number(v)<1?6:2);
-const tok=v=>{try{return v==null?'â€”':num(Number(formatUnits(BigInt(v),18)),6)}catch{return'â€”'}};
-const field=(o,n,i)=>o?.[n]??o?.[i];
-const Panel=({title,children})=><section className="panel"><h2>{title}</h2>{children}</section>;
-const Stat=({label,value})=><div className="stat"><small>{label}</small><b>{value??'â€”'}</b></div>;
-const Row=({label,value})=><div className="row"><span>{label}</span><b>{value??'â€”'}</b></div>;
+import React, { useEffect, useMemo, useState } from 'react';
+import { useAppKit, useAppKitAccount, useAppKitNetwork } from '@reown/appkit/react';
+import { useBalance, useReadContract } from 'wagmi';
 
-export default function App(){
- const {open}=useAppKit(),{address,isConnected}=useAppKitAccount(),{chainId}=useAppKitNetwork();
- const enabled=!!(isConnected&&address&&Number(chainId)===56);
- const [tab,T]=useState('market'),[lang,L]=useState('fa'),[coins,C]=useState([]),[loading,Load]=useState(false),[err,E]=useState('');
- const [search,S]=useState(''),[picked,P]=useState(null),[autoMarket,AM]=useState(false);
- const [favorites,F]=useState(()=>{try{return JSON.parse(localStorage.getItem('ce-favorites')||'[]')}catch{return[]}});
- const [alerts,A]=useState(()=>{try{return JSON.parse(localStorage.getItem('ce-alerts')||'[]')}catch{return[]}});
- const [alertCoin,AC]=useState('bitcoin'),[alertPrice,AP]=useState('');
- const [modes,M]=useState(()=>{try{const x=JSON.parse(localStorage.getItem('smartglobal-modes')||'{}');const v=k=>['OFF','MANUAL','AUTO'].includes(x[k])?x[k]:'OFF';return{gift:v('gift'),distribute:v('distribute'),pay:v('pay')}}catch{return{gift:'OFF',distribute:'OFF',pay:'OFF'}}});
- const [last,Last]=useState('â€”'),[note,Note]=useState('');
- const auto=Object.values(modes).includes('AUTO');
- const bnb=useBalance({address,chainId:56,query:{enabled,refetchInterval:30000}});
- const usdt=useReadContract({address:USDT,abi:erc20,functionName:'balanceOf',args:[address],chainId:56,query:{enabled,refetchInterval:30000}});
- const sgt=useReadContract({address:SGT,abi:erc20,functionName:'balanceOf',args:[address],chainId:56,query:{enabled,refetchInterval:30000}});
- const opts={refetchInterval:auto?30000:false};
- const round=useReadContract({address:BANK,abi:bank,functionName:'_currentGiftRound',chainId:56,query:opts});
- const size=useReadContract({address:BANK,abi:bank,functionName:'giftListSize',chainId:56,query:opts});
- const global=useReadContract({address:BANK,abi:bank,functionName:'globalTokenBalance',chainId:56,query:opts});
- const bankUSD=useReadContract({address:BANK,abi:bank,functionName:'usdtBalance',chainId:56,query:opts});
- const owner=useReadContract({address:BANK,abi:bank,functionName:'ownerInfo',args:[address],chainId:56,query:{...opts,enabled}});
- const id=field(owner.data,'ID',0);
- const gift=useReadContract({address:BANK,abi:bank,functionName:'ownerBankInfo',args:id!==undefined?[id]:undefined,chainId:56,query:{...opts,enabled:enabled&&id!==undefined&&BigInt(id)>0n}});
- const status=useReadContract({address:PAY,abi:pay,functionName:'ownerStatus',args:[address],chainId:56,query:{...opts,enabled}});
- const points=useReadContract({address:PAY,abi:pay,functionName:'ownerAllPoint',args:[address],chainId:56,query:{...opts,enabled}});
- const hours=useReadContract({address:PAY,abi:pay,functionName:'lastRewardTimePassed',args:[address],chainId:56,query:{...opts,enabled}});
- const payUSD=useReadContract({address:PAY,abi:pay,functionName:'justContractBalance',chainId:56,query:opts});
- const proposal=useReadContract({address:BANK,abi:bank,functionName:'currentProposalStatus',chainId:56,query:opts});
- const simD=useSimulateContract({address:BANK,abi:bank,functionName:'distributeBank',account:address,chainId:56,query:{enabled:enabled&&modes.distribute==='MANUAL',retry:0}});
- const simP=useSimulateContract({address:PAY,abi:pay,functionName:'payReward',account:address,chainId:56,query:{enabled:enabled&&modes.pay==='MANUAL',retry:0}});
- async function load(){Load(true);E('');try{const r=await fetch(`${API}/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=50&page=1&sparkline=true&price_change_percentage=24h`);if(!r.ok)throw Error('HTTP '+r.status);const d=await r.json();if(!Array.isArray(d))throw Error('Ù¾Ø§Ø³Ø® Ø¨Ø§Ø²Ø§Ø± Ù…Ø¹ØªØ¨Ø± Ù†ÛŒØ³Øª');C(d)}catch(e){E('Ø¯Ø±ÛŒØ§ÙØª Ù‚ÛŒÙ…Øªâ€ŒÙ‡Ø§ Ù†Ø§Ù…ÙˆÙÙ‚ Ø´Ø¯: '+(e.message||'Ø®Ø·Ø§ÛŒ Ø´Ø¨Ú©Ù‡'))}finally{Load(false)}}
- useEffect(()=>{load()},[]);
- useEffect(()=>{if(!autoMarket)return;const x=setInterval(load,60000);return()=>clearInterval(x)},[autoMarket]);
- useEffect(()=>{localStorage.setItem('ce-favorites',JSON.stringify(favorites))},[favorites]);
- useEffect(()=>{localStorage.setItem('ce-alerts',JSON.stringify(alerts))},[alerts]);
- useEffect(()=>{localStorage.setItem('smartglobal-modes',JSON.stringify(modes))},[modes]);
- useEffect(()=>{if(!auto)return;const x=setInterval(()=>Last(new Date().toLocaleTimeString()),30000);return()=>clearInterval(x)},[auto]);
- const shown=useMemo(()=>{let a=tab==='favorites'?coins.filter(c=>favorites.includes(c.id)):coins;const q=search.trim().toLowerCase();return q?a.filter(c=>c.name?.toLowerCase().includes(q)||c.symbol?.toLowerCase().includes(q)):a},[coins,favorites,search,tab]);
- const fa=lang==='fa';
- const t=fa?{market:'Ø¨Ø§Ø²Ø§Ø±',favorites:'Ø¹Ù„Ø§Ù‚Ù‡â€ŒÙ…Ù†Ø¯ÛŒâ€ŒÙ‡Ø§',wallet:'Ú©ÛŒÙ Ù¾ÙˆÙ„',smart:'SmartGlobal',search:'Ø¬Ø³ØªØ¬ÙˆÛŒ Ù†Ø§Ù… ÛŒØ§ Ù†Ù…Ø§Ø¯ Ø§Ø±Ø²...',refresh:'ØªØ§Ø²Ù‡â€ŒØ³Ø§Ø²ÛŒ',price:'Ù‚ÛŒÙ…Øª',change:'ØªØºÛŒÛŒØ± Û²Û´ Ø³Ø§Ø¹ØªÙ‡',cap:'Ø§Ø±Ø²Ø´ Ø¨Ø§Ø²Ø§Ø±',alerts:'Ù‡Ø´Ø¯Ø§Ø± Ù‚ÛŒÙ…Øª',target:'Ù‚ÛŒÙ…Øª Ù‡Ø¯Ù Ø¨Ù‡ Ø¯Ø§Ù„Ø±',add:'Ø§ÙØ²ÙˆØ¯Ù†',connect:'Ø§ØªØµØ§Ù„ Ú©ÛŒÙ Ù¾ÙˆÙ„',account:'Ø§Ø·Ù„Ø§Ø¹Ø§Øª Ø­Ø³Ø§Ø¨',gift:'Ø§Ø·Ù„Ø§Ø¹Ø§Øª Gift',pay:'Ø§Ø·Ù„Ø§Ø¹Ø§Øª Pay Reward',safe:'Ø§ÛŒÙ† Ø¨Ø±Ù†Ø§Ù…Ù‡ ÙÙ‚Ø· Ø§Ø·Ù„Ø§Ø¹Ø§Øª Ø±Ø§ Ù…ÛŒâ€ŒØ®ÙˆØ§Ù†Ø¯ Ùˆ Ù‡ÛŒÚ† ØªØ±Ø§Ú©Ù†Ø´ÛŒ Ø§Ø±Ø³Ø§Ù„ Ù†Ù…ÛŒâ€ŒÚ©Ù†Ø¯.',modes:'Ø­Ø§Ù„Øªâ€ŒÙ‡Ø§ÛŒ SmartGlobal'}:{market:'Market',favorites:'Favorites',wallet:'Wallet',smart:'SmartGlobal',search:'Search coin name or symbol...',refresh:'Refresh',price:'Price',change:'24h change',cap:'Market cap',alerts:'Price alerts',target:'Target price USD',add:'Add',connect:'Connect wallet',account:'Account information',gift:'Gift information',pay:'Pay Reward information',safe:'Read-only dashboard. It does not send transactions.',modes:'SmartGlobal modes'};
- function mode(k,v){M(o=>({...o,[k]:v}))}
- async function refresh(){await Promise.allSettled([round,size,global,bankUSD,owner,gift,status,points,hours,payUSD,proposal,bnb,usdt,sgt].map(x=>x.refetch?.()));Last(new Date().toLocaleString());Note('ØªØ§Ø²Ù‡â€ŒØ³Ø§Ø²ÛŒ Ø§Ù†Ø¬Ø§Ù… Ø´Ø¯.')}
- const pct=v=>v===undefined?'â€”':v?'Yes':'No';
- return <main className="app" dir={fa?'rtl':'ltr'}>
- <style>{`*{box-sizing:border-box}body{margin:0;background:#0b1020;color:#eef2ff;font-family:Tahoma,Arial}.app{max-width:1100px;margin:auto;padding:14px;min-height:100vh}.top,.head,.row,.mode{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}h1{font-size:23px}h2{font-size:17px;margin:0 0 12px}button,input,select{font:inherit}button{background:#18233d;color:white;border:1px solid #33415f;border-radius:9px;padding:9px 12px}.primary,.active{background:#2563eb}.nav,.controls,.modes{display:flex;gap:7px;flex-wrap:wrap;margin:12px 0}.panel{background:#121b30;border:1px solid #263653;border-radius:14px;padding:14px;margin:13px 0}.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:9px}.stat{background:#192640;border:1px solid #2b3b5b;border-radius:10px;padding:11px;overflow-wrap:anywhere}.stat small{display:block;color:#9eacc8;margin-bottom:7px}.stat b{font-size:16px}.row{padding:10px 0;border-bottom:1px solid #263653}.controls input,.controls select{background:#0d1629;color:white;border:1px solid #33415f;border-radius:9px;padding:10px;min-width:120px}.controls input{flex:1}.tableWrap{overflow:auto}table{width:100%;min-width:560px;border-collapse:collapse}td,th{text-align:start;padding:10px 7px;border-bottom:1px solid #263653;font-size:13px}.coin{display:flex;gap:8px;align-items:center}.coin img{width:25px}.green{color:#35d39a}.red,.error{color:#ff899d}.notice{background:#192640;padding:12px;border-radius:10px;font-size:12px;line-height:1.8;margin-top:10px}.chart{width:100%;height:110px;display:block}.mode{padding:10px 0;border-bottom:1px solid #263653}.muted{color:#9aa8c7;font-size:13px}.empty{text-align:center;padding:20px}footer{text-align:center;padding:20px;color:#91a1c2;font-size:12px}@media(max-width:600px){.app{padding:9px}.panel{padding:11px}.mode button{padding:7px}}`}</style>
- <header className="top"><div><h1>ðŸŒ {fa?'Ú©Ø§ÙˆØ´Ú¯Ø± Ø§Ø±Ø² Ø¯ÛŒØ¬ÛŒØªØ§Ù„':'Crypto Explorer'}</h1><div className="muted">{fa?'Ù‚ÛŒÙ…Øª Ø§Ø±Ø²Ù‡Ø§ØŒ Ø¨Ø±Ø±Ø³ÛŒ Ø¨Ø§Ø²Ø§Ø± Ùˆ Ú©ÛŒÙ Ù¾ÙˆÙ„':'Prices, market research and wallet dashboard'} Â· BNB Smart Chain</div></div><div className="controls"><button onClick={()=>L(fa?'en':'fa')}>{fa?'English':'Ø¯Ø±ÛŒ'}</button><button className="primary" onClick={()=>open({view:'Connect'})}>{isConnected?(fa?'Ú©ÛŒÙ Ù¾ÙˆÙ„ Ù…ØªØµÙ„ Ø§Ø³Øª':'Wallet connected'):t.connect}</button></div></header>
- <nav className="nav">{[['market',t.market],['favorites',t.favorites],['wallet',t.wallet],['smart',t.smart]].map(([k,v])=><button key={k} className={tab===k?'active':''} onClick={()=>{T(k);P(null)}}>{v}</button>)}</nav>
- {(tab==='market'||tab==='favorites')&&<><Panel title={t.market}><div className="controls"><input value={search} onChange={e=>S(e.target.value)} placeholder={t.search}/><label className="muted"><input type="checkbox" checked={autoMarket} onChange={e=>AM(e.target.checked)}/> Auto 60s</label><button onClick={load}>{t.refresh}</button></div>{loading&&<p className="muted">Ø¯Ø± Ø­Ø§Ù„ Ø¯Ø±ÛŒØ§ÙØª...</p>}{err&&<p className="error">{err}</p>}
- {picked&&<div className="notice"><b>{picked.name} ({picked.symbol?.toUpperCase()})</b><div className="stats"><Stat label={t.price} value={usd(picked.current_price)}/><Stat label={t.change} value={num(picked.price_change_percentage_24h)+'%'}/><Stat label={t.cap} value={usd(picked.market_cap)}/><Stat label="24h High / Low" value={`${usd(picked.high_24h)} / ${usd(picked.low_24h)}`}/></div>{picked.sparkline_in_7d?.price?.length>1&&<svg className="chart" viewBox="0 0 700 100" preserveAspectRatio="none"><polyline fill="none" stroke="#60a5fa" strokeWidth="2" points={picked.sparkline_in_7d.price.map((p,i,a)=>`${i*700/(a.length-1)},${95-(p-Math.min(...a))/(Math.max(...a)-Math.min(...a)||1)*85}`).join(' ')}/></svg>}<button onClick={()=>P(null)}>Ø¨Ø³ØªÙ† Ø¬Ø²Ø¦ÛŒØ§Øª</button></div>}
- <div className="tableWrap"><table><thead><tr><th>#</th><th>Coin</th><th>{t.price}</th><th>{t.change}</th><th>{t.cap}</th><th>â˜…</th></tr></thead><tbody>{shown.map(c=><tr key={c.id}><td>{c.market_cap_rank||'â€”'}</td><td><button onClick={()=>P(c)}><span className="coin"><img src={c.image} alt=""/>{c.name} {c.symbol?.toUpperCase()}</span></button></td><td>{usd(c.current_price)}</td><td className={Number(c.price_change_percentage_24h)>=0?'green':'red'}>{num(c.price_change_percentage_24h)}%</td><td>{usd(c.market_cap)}</td><td><button onClick={()=>F(a=>a.includes(c.id)?a.filter(x=>x!==c.id):[...a,c.id])}>{favorites.includes(c.id)?'â˜…':'â˜†'}</button></td></tr>)}</tbody></table></div></Panel>
- <Panel title={t.alerts}><div className="controls"><select value={alertCoin} onChange={e=>AC(e.target.value)}>{coins.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select><input type="number" value={alertPrice} onChange={e=>AP(e.target.value)} placeholder={t.target}/><button className="primary" onClick={()=>{const p=Number(alertPrice);if(p>0){A(a=>[...a,{id:String(Date.now()),coin:alertCoin,price:p}]);AP('')}}}>{t.add}</button></div>{alerts.map(a=><Row key={a.id} label={coins.find(c=>c.id===a.coin)?.name||a.coin} value={<>{usd(a.price)} <button onClick={()=>A(x=>x.filter(z=>z.id!==a.id))}>Ã—</button></>}/>)}<p className="muted">Ù‡Ø´Ø¯Ø§Ø±Ù‡Ø§ Ø°Ø®ÛŒØ±Ù‡ Ù…ÛŒâ€ŒØ´ÙˆÙ†Ø¯Ø› Ø§Ø¹Ù„Ø§Ù† Ø®Ø§Ø±Ø¬ Ø§Ø² Ø¨Ø±Ù†Ø§Ù…Ù‡ Ø¯Ø± Ø§ÛŒÙ† Ù†Ø³Ø®Ù‡ ÙØ¹Ø§Ù„ Ù†ÛŒØ³Øª.</p></Panel></>}
- {tab==='wallet'&&<Panel title={t.wallet}>{!isConnected?<button onClick={()=>open({view:'Connect'})}>{t.connect}</button>:<><Row label="Network" value={`${Number(chainId)===56?'BNB Smart Chain':'Other'} (${chainId})`}/><Row label="Address" value={address}/><div className="stats"><Stat label="BNB" value={bnb.data?bnb.data.formatted:'â€”'}/><Stat label="USDT" value={tok(usdt.data)}/><Stat label="SGT" value={tok(sgt.data)}/></div></>}<div className="notice">{t.safe}</div></Panel>}
- {tab==='smart'&&<><Panel title={t.smart}><div className="stats"><Stat label="Gift Round" value={round.data?.toString()}/><Stat label="Gift List Size" value={size.data?.toString()}/><Stat label="Global Token Balance" value={tok(global.data)}/><Stat label="Bank USDT" value={tok(bankUSD.data)}/></div></Panel>
- <Panel title={t.account}>{!isConnected?<button onClick={()=>open({view:'Connect'})}>{t.connect}</button>:<><Row label="Account ID" value={id?.toString()}/><div className="stats"><Stat label="Total Left" value={field(owner.data,'Total_Left',1)?.toString()}/><Stat label="Total Right" value={field(owner.data,'Total_Right',2)?.toString()}/><Stat label="Current Left" value={field(owner.data,'Current_Left',3)?.toString()}/><Stat label="Current Right" value={field(owner.data,'Current_Right',4)?.toString()}/><Stat label="Directs" value={field(owner.data,'Directs_Count',5)?.toString()}/></div></>}</Panel>
- <Panel title={t.gift}><div className="stats"><Stat label="Gift received USDT" value={tok(gift.data?.[0])}/><Stat label="Days since Gift" value={gift.data?.[1]?.toString()}/><Stat label="Free Token" value={pct(gift.data?.[2])}/><Stat label="Caller reward USDT" value={tok(gift.data?.[3])}/><Stat label="Hours since Caller" value={gift.data?.[4]?.toString()}/><Stat label="Hours since buy" value={gift.data?.[5]?.toString()}/>{[6,7,8,9].map((i)=><Stat key={i} label={`Tier ${i-5}`} value={pct(gift.data?.[i])}/>)}</div></Panel>
- <Panel title={t.pay}><div className="stats"><Stat label="Pay status" value={pct(status.data)}/><Stat label="Points" value={points.data?.toString()}/><Stat label="Hours since Reward" value={hours.data?.toString()}/><Stat label="Pay contract balance" value={tok(payUSD.data)}/></div><p className="notice">ABI Ùˆ Ø¯Ø§Ø¯Ù‡â€ŒÙ‡Ø§ÛŒ Ù‚Ø±Ø§Ø±Ø¯Ø§Ø¯ Pay Ù‡Ù†ÙˆØ² Ù…Ø³ØªÙ‚Ù„Ø§Ù‹ ØªØ£ÛŒÛŒØ¯ Ù†Ø´Ø¯Ù‡â€ŒØ§Ù†Ø¯Ø› Ø§Ø±Ù‚Ø§Ù… Ø§ÛŒÙ† Ø¨Ø®Ø´ Ø±Ø§ Ù‚Ø·Ø¹ÛŒ Ù†Ø¯Ø§Ù†ÛŒØ¯.</p></Panel>
- <Panel title={t.modes}>{[['gift','Gift'],['distribute','Distribute'],['pay','Pay Reward']].map(([k,label])=><div className="mode" key={k}><b>{label}</b><div className="modes">{['OFF','MANUAL','AUTO'].map(m=><button key={m} className={modes[k]===m?'primary':''} onClick={()=>mode(k,m)}>{m}</button>)}</div></div>)}<p className="notice">AUTO ÙÙ‚Ø· Ø§Ø·Ù„Ø§Ø¹Ø§Øª Ø±Ø§ Ù‡Ø± Û³Û° Ø«Ø§Ù†ÛŒÙ‡ ØªØ§Ø²Ù‡ Ù…ÛŒâ€ŒÚ©Ù†Ø¯. MANUAL ÙÙ‚Ø· Ø´Ø¨ÛŒÙ‡â€ŒØ³Ø§Ø²ÛŒ Ø®ÙˆØ§Ù†Ø¯Ù†ÛŒ Ø§Ø³Øª. Ù‡ÛŒÚ† ØªØ±Ø§Ú©Ù†Ø´ÛŒ Ø§Ø² Ø§ÛŒÙ† Ø¨Ø±Ù†Ø§Ù…Ù‡ Ø§Ø±Ø³Ø§Ù„ Ù†Ù…ÛŒâ€ŒØ´ÙˆØ¯.</p><Row label="Distribute simulation" value={!enabled?'Connect BNB wallet':simD.isLoading?'Checking':simD.error?'Not ready':simD.data?'Passed':'Waiting'}/><Row label="Pay Reward simulation" value={!enabled?'Connect BNB wallet':simP.isLoading?'Checking':simP.error?'Not ready':simP.data?'Passed':'Waiting'}/><Row label="Proposal target" value={field(proposal.data,'target',0)}/><Row label="Proposal type / stage" value={`${field(proposal.data,'pType',1)??'â€”'} / ${field(proposal.data,'stage',4)??'â€”'}`}/><button className="primary" onClick={refresh}>{t.refresh}</button><p className="muted">Last refresh: {last}</p>{note&&<p className="notice">{note}</p>}</Panel><p className="notice">{t.safe}</p></>}
- <footer>Crypto Explorer Â· SmartGlobal Â· BNB Smart Chain Â· Read-only</footer></main>;
+import { CHAIN_ID, CONTRACTS } from './contracts/addresses';
+import { erc20Abi, bankAbi, payAbi } from './contracts/abi';
+import { num, usd, tok, field, pct } from './utils/format';
+import {
+  fetchMarketCoins,
+  searchMarketAssets,
+  fetchCoinMarket,
+} from './services/market';
+
+const REFRESH_MS = 30000;
+
+const Panel = ({ title, children }) => (
+  <section className="panel">
+    <h2>{title}</h2>
+    {children}
+  </section>
+);
+
+const Stat = ({ label, value }) => (
+  <div className="stat">
+    <small>{label}</small>
+    <b>{value ?? '—'}</b>
+  </div>
+);
+
+const Row = ({ label, value }) => (
+  <div className="row">
+    <span>{label}</span>
+    <b>{value ?? '—'}</b>
+  </div>
+);
+
+export default function App() {
+  const { open } = useAppKit();
+  const { address, isConnected } = useAppKitAccount();
+  const { chainId } = useAppKitNetwork();
+
+  const enabled = Boolean(
+    isConnected && address && Number(chainId) === CHAIN_ID
+  );
+
+  const [tab, setTab] = useState('market');
+  const [lang, setLang] = useState('fa');
+
+  const [coins, setCoins] = useState([]);
+  const [search, setSearch] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState('');
+
+  const [picked, setPicked] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [marketError, setMarketError] = useState('');
+  const [lastMarketUpdate, setLastMarketUpdate] = useState('');
+
+  const [favorites, setFavorites] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('ce-favorites') || '[]');
+    } catch {
+      return [];
+    }
+  });
+
+  const [alerts, setAlerts] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('ce-alerts') || '[]');
+    } catch {
+      return [];
+    }
+  });
+
+  const [triggeredAlerts, setTriggeredAlerts] = useState([]);
+  const [alertCoin, setAlertCoin] = useState('bitcoin');
+  const [alertPrice, setAlertPrice] = useState('');
+
+  const [modes, setModes] = useState(() => {
+    try {
+      const saved = JSON.parse(
+        localStorage.getItem('smartglobal-modes') || '{}'
+      );
+      const valid = (key) =>
+        ['OFF', 'MANUAL', 'AUTO'].includes(saved[key])
+          ? saved[key]
+          : 'OFF';
+
+      return {
+        gift: valid('gift'),
+        distribute: valid('distribute'),
+        pay: valid('pay'),
+      };
+    } catch {
+      return { gift: 'OFF', distribute: 'OFF', pay: 'OFF' };
+    }
+  });
+
+  const [lastRefresh, setLastRefresh] = useState('');
+  const [notice, setNotice] = useState('');
+
+  const fa = lang === 'fa';
+
+  const t = fa
+    ? {
+        title: 'کاوشگر ارز دیجیتال',
+        subtitle: 'قیمت ارزها، بررسی بازار و کیف پول',
+        market: 'بازار',
+        favorites: 'علاقه‌مندی‌ها',
+        wallet: 'کیف پول',
+        smart: 'SmartGlobal',
+        search: 'جستجوی نام، نماد یا آدرس قرارداد ارز...',
+        refresh: 'تازه‌سازی',
+        price: 'قیمت',
+        change: 'تغییر ۲۴ ساعته',
+        cap: 'ارزش بازار',
+        alerts: 'هشدار قیمت',
+        target: 'قیمت هدف به دالر',
+        add: 'افزودن',
+        connect: 'اتصال کیف پول',
+        account: 'اطلاعات حساب',
+        gift: 'اطلاعات Gift',
+        pay: 'اطلاعات Pay Reward',
+        modes: 'حالت‌های SmartGlobal',
+        safe: 'این برنامه اطلاعات را می‌خواند و هیچ تراکنشی را خودکار ارسال نمی‌کند.',
+        loading: 'در حال دریافت اطلاعات...',
+        noResults: 'نتیجه‌ای پیدا نشد.',
+        auto: 'تازه‌سازی خودکار فعال است؛ هر ۳۰ ثانیه',
+        network: 'شبکه',
+        address: 'آدرس کیف پول',
+        close: 'بستن جزئیات',
+        source: 'منبع',
+        liquidity: 'نقدینگی',
+        rank: 'رتبه بازار',
+        update: 'آخرین به‌روزرسانی',
+        alertNote: 'هشدارها در داخل برنامه بررسی می‌شوند؛ اعلان بیرونی در این نسخه فعال نیست.',
+      }
+    : {
+        title: 'Crypto Explorer',
+        subtitle: 'Prices, market research and wallet',
+        market: 'Market',
+        favorites: 'Favorites',
+        wallet: 'Wallet',
+        smart: 'SmartGlobal',
+        search: 'Search by name, symbol or contract address...',
+        refresh: 'Refresh',
+        price: 'Price',
+        change: '24h change',
+        cap: 'Market cap',
+        alerts: 'Price alerts',
+        target: 'Target price USD',
+        add: 'Add',
+        connect: 'Connect wallet',
+        account: 'Account information',
+        gift: 'Gift information',
+        pay: 'Pay Reward information',
+        modes: 'SmartGlobal modes',
+        safe: 'This app reads information and does not automatically send transactions.',
+        loading: 'Loading information...',
+        noResults: 'No results found.',
+        auto: 'Automatic refresh is active; every 30 seconds',
+        network: 'Network',
+        address: 'Wallet address',
+        close: 'Close details',
+        source: 'Source',
+        liquidity: 'Liquidity',
+        rank: 'Market rank',
+        update: 'Last update',
+        alertNote: 'Alerts are checked inside the app; external notifications are not enabled in this version.',
+      };
+
+  // کیف پول و موجودی‌ها
+  const bnb = useBalance({
+    address,
+    chainId: CHAIN_ID,
+    query: { enabled, refetchInterval: REFRESH_MS },
+  });
+
+  const usdt = useReadContract({
+    address: CONTRACTS.USDT,
+    abi: erc20Abi,
+    functionName: 'balanceOf',
+    args: address ? [address] : undefined,
+    chainId: CHAIN_ID,
+    query: { enabled, refetchInterval: REFRESH_MS },
+  });
+
+  const sgt = useReadContract({
+    address: CONTRACTS.SGT,
+    abi: erc20Abi,
+    functionName: 'balanceOf',
+    args: address ? [address] : undefined,
+    chainId: CHAIN_ID,
+    query: { enabled, refetchInterval: REFRESH_MS },
+  });
+
+  // اطلاعات عمومی SmartGlobal
+  const readOptions = {
+    refetchInterval: REFRESH_MS,
+    retry: 1,
+  };
+
+  const round = useReadContract({
+    address: CONTRACTS.BANK,
+    abi: bankAbi,
+    functionName: '_currentGiftRound',
+    chainId: CHAIN_ID,
+    query: readOptions,
+  });
+
+  const size = useReadContract({
+    address: CONTRACTS.BANK,
+    abi: bankAbi,
+    functionName: 'giftListSize',
+    chainId: CHAIN_ID,
+    query: readOptions,
+  });
+
+  const global = useReadContract({
+    address: CONTRACTS.BANK,
+    abi: bankAbi,
+    functionName: 'globalTokenBalance',
+    chainId: CHAIN_ID,
+    query: readOptions,
+  });
+
+  const bankUSD = useReadContract({
+    address: CONTRACTS.BANK,
+    abi: bankAbi,
+    functionName: 'usdtBalance',
+    chainId: CHAIN_ID,
+    query: readOptions,
+  });
+
+  const owner = useReadContract({
+    address: CONTRACTS.BANK,
+    abi: bankAbi,
+    functionName: 'ownerInfo',
+    args: address ? [address] : undefined,
+    chainId: CHAIN_ID,
+    query: { ...readOptions, enabled },
+  });
+
+  const accountId = field(owner.data, 'ID', 0);
+
+  const gift = useReadContract({
+    address: CONTRACTS.BANK,
+    abi: bankAbi,
+    functionName: 'ownerBankInfo',
+    args: accountId !== undefined ? [accountId] : undefined,
+    chainId: CHAIN_ID,
+    query: {
+      ...readOptions,
+      enabled: enabled && accountId !== undefined && BigInt(accountId) > 0n,
+    },
+  });
+
+  const status = useReadContract({
+    address: CONTRACTS.PAY,
+    abi: payAbi,
+    functionName: 'ownerStatus',
+    args: address ? [address] : undefined,
+    chainId: CHAIN_ID,
+    query: { ...readOptions, enabled },
+  });
+
+  const points = useReadContract({
+    address: CONTRACTS.PAY,
+    abi: payAbi,
+    functionName: 'ownerAllPoint',
+    args: address ? [address] : undefined,
+    chainId: CHAIN_ID,
+    query: { ...readOptions, enabled },
+  });
+
+  const hours = useReadContract({
+    address: CONTRACTS.PAY,
+    abi: payAbi,
+    functionName: 'lastRewardTimePassed',
+    args: address ? [address] : undefined,
+    chainId: CHAIN_ID,
+    query: { ...readOptions, enabled },
+  });
+
+  const payUSD = useReadContract({
+    address: CONTRACTS.PAY,
+    abi: payAbi,
+    functionName: 'justContractBalance',
+    chainId: CHAIN_ID,
+    query: readOptions,
+  });
+
+  const proposal = useReadContract({
+    address: CONTRACTS.BANK,
+    abi: bankAbi,
+    functionName: 'currentProposalStatus',
+    chainId: CHAIN_ID,
+    query: readOptions,
+  });
+
+  // دریافت بازار در شروع و هر ۳۰ ثانیه
+  async function loadMarket() {
+    setLoading(true);
+    setMarketError('');
+
+    try {
+      const data = await fetchMarketCoins();
+      setCoins(data);
+      setLastMarketUpdate(new Date().toLocaleTimeString());
+    } catch (error) {
+      setMarketError(
+        'دریافت اطلاعات بازار ناموفق شد: ' +
+          (error?.message || 'خطای شبکه')
+      );
+    } finally {
+      setLoading(false);
+    }
   }
+
+  useEffect(() => {
+    loadMarket();
+
+    const timer = setInterval(loadMarket, REFRESH_MS);
+
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') {
+        loadMarket();
+      }
+    };
+
+    document.addEventListener('visibilitychange', onVisible);
+
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, []);
+
+  // جستجوی خودکار پس از مکث کوتاه در تایپ
+  useEffect(() => {
+    const query = search.trim();
+    let active = true;
+
+    if (!query) {
+      setSearchResults([]);
+      setSearchError('');
+      setSearchLoading(false);
+      return () => {
+        active = false;
+      };
+    }
+
+    setSearchLoading(true);
+    setSearchError('');
+
+    const timer = setTimeout(async () => {
+      try {
+        const results = await searchMarketAssets(query);
+        if (active) setSearchResults(results);
+      } catch (error) {
+        if (active) {
+          setSearchResults([]);
+          setSearchError(
+            'جستجو ناموفق شد: ' + (error?.message || 'خطای شبکه')
+          );
+        }
+      } finally {
+        if (active) setSearchLoading(false);
+      }
+    }, 450);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [search]);
+
+  useEffect(() => {
+    localStorage.setItem('ce-favorites', JSON.stringify(favorites));
+  }, [favorites]);
+
+  useEffect(() => {
+    localStorage.setItem('ce-alerts', JSON.stringify(alerts));
+  }, [alerts]);
+
+  useEffect(() => {
+    localStorage.setItem('smartglobal-modes', JSON.stringify(modes));
+  }, [modes]);
+
+  // بررسی خودکار هشدارهای قیمت
+  useEffect(() => {
+    if (!coins.length || !alerts.length) return;
+
+    const newlyTriggered = alerts.filter((alert) => {
+      const coin = coins.find((item) => item.id === alert.coin);
+      if (!coin) return false;
+
+      const crossed =
+        Number(coin.current_price) >= Number(alert.price);
+
+      return crossed && !triggeredAlerts.includes(alert.id);
+    });
+
+    if (newlyTriggered.length) {
+      setTriggeredAlerts((old) => [
+        ...old,
+        ...newlyTriggered.map((item) => item.id),
+      ]);
+    }
+  }, [coins, alerts, triggeredAlerts]);
+
+  const shown = useMemo(() => {
+    if (search.trim()) return searchResults;
+
+    if (tab === 'favorites') {
+      return coins.filter((coin) => favorites.includes(coin.id));
+    }
+
+    return coins;
+  }, [coins, favorites, search, searchResults, tab]);
+
+  async function selectAsset(asset) {
+    try {
+      setPicked(null);
+
+      const details = await fetchCoinMarket(asset);
+
+      if (details) {
+        setPicked(details);
+      }
+    } catch (error) {
+      setSearchError(
+        'دریافت جزئیات ارز ناموفق شد: ' +
+          (error?.message || 'خطا')
+      );
+    }
+  }
+
+  function changeMode(key, value) {
+    setModes((old) => ({ ...old, [key]: value }));
+  }
+
+  async function refreshAll() {
+    await loadMarket();
+
+    const queries = [
+      round, size, global, bankUSD, owner, gift,
+      status, points, hours, payUSD, proposal,
+      bnb, usdt, sgt,
+    ];
+
+    await Promise.allSettled(
+      queries.map((item) => item.refetch?.())
+    );
+
+    setLastRefresh(new Date().toLocaleString());
+    setNotice('به‌روزرسانی انجام شد.');
+  }
+
+  const isDex = picked?.kind === 'dex';
+
+  return (
+    <main className="app" dir={fa ? 'rtl' : 'ltr'}>
+      <style>{`
+        *{box-sizing:border-box}
+        body{margin:0;background:#0b1020;color:#eef2ff;font-family:Tahoma,Arial}
+        .app{max-width:1100px;margin:auto;padding:14px;min-height:100vh}
+        .top,.row,.mode{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+        h1{font-size:23px}
+        h2{font-size:17px;margin:0 0 12px}
+        button,input,select{font:inherit}
+        button{background:#18233d;color:white;border:1px solid #33415f;border-radius:9px;padding:9px 12px;cursor:pointer}
+        button:hover{opacity:.85}
+        .primary,.active{background:#2563eb}
+        .nav,.controls,.modes{display:flex;gap:7px;flex-wrap:wrap;margin:12px 0}
+        .panel{background:#121b30;border:1px solid #263653;border-radius:14px;padding:14px;margin:13px 0}
+        .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:9px}
+        .stat{background:#192640;border:1px solid #2b3b5b;border-radius:10px;padding:11px;overflow-wrap:anywhere}
+        .stat small{display:block;color:#9eacc8;margin-bottom:7px}
+        .stat b{font-size:15px}
+        .row{padding:10px 0;border-bottom:1px solid #263653}
+        .controls input,.controls select{background:#0d1629;color:white;border:1px solid #33415f;border-radius:9px;padding:10px;min-width:120px}
+        .controls input{flex:1}
+        .tableWrap{overflow:auto}
+        table{width:100%;min-width:590px;border-collapse:collapse}
+        td,th{text-align:start;padding:10px 7px;border-bottom:1px solid #263653;font-size:13px}
+        .coin{display:flex;gap:8px;align-items:center}
+        .coin img{width:25px;height:25px;object-fit:contain}
+        .green{color:#35d39a}.red,.error{color:#ff899d}
+        .notice{background:#192640;padding:12px;border-radius:10px;font-size:12px;line-height:1.8;margin-top:10px}
+        .chart{width:100%;height:110px;display:block}
+        .mode{padding:10px 0;border-bottom:1px solid #263653}
+        .muted{color:#9aa8c7;font-size:13px}
+        .empty{text-align:center;padding:20px}
+        footer{text-align:center;padding:20px;color:#91a1c2;font-size:12px}
+        .assetButton{border:0;background:transparent;padding:4px;text-align:start}
+        @media(max-width:600px){.app{padding:9px}.panel{padding:11px}.mode button{padding:7px}}
+      `}</style>
+
+      <header className="top">
+        <div>
+          <h1>🌐 {t.title}</h1>
+          <div className="muted">
+            {t.subtitle} · BNB Smart Chain
+          </div>
+        </div>
+
+        <div className="controls">
+          <button onClick={() => setLang(fa ? 'en' : 'fa')}>
+            {fa ? 'English' : 'دری'}
+          </button>
+
+          <button
+            className="primary"
+            onClick={() => open({ view: 'Connect' })}
+          >
+            {isConnected ? 'Wallet connected' : t.connect}
+          </button>
+        </div>
+      </header>
+
+      <nav className="nav">
+        {[
+          ['market', t.market],
+          ['favorites', t.favorites],
+          ['wallet', t.wallet],
+          ['smart', t.smart],
+        ].map(([key, label]) => (
+          <button
+            key={key}
+            className={tab === key ? 'active' : ''}
+            onClick={() => {
+              setTab(key);
+              setPicked(null);
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </nav>
+
+      {(tab === 'market' || tab === 'favorites') && (
+        <>
+          <Panel title={t.market}>
+            <div className="controls">
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder={t.search}
+              />
+
+              <button onClick={loadMarket}>{t.refresh}</button>
+            </div>
+
+            <p className="muted">{t.auto}</p>
+
+            {loading && <p className="muted">{t.loading}</p>}
+            {marketError && <p className="error">{marketError}</p>}
+            {searchLoading && <p className="muted">{t.loading}</p>}
+            {searchError && <p className="error">{searchError}</p>}
+
+            {picked && (
+              <div className="notice">
+                <b>
+                  {picked.name} ({picked.symbol?.toUpperCase()})
+                </b>
+
+                <div className="stats">
+                  <Stat
+                    label={t.price}
+                    value={usd(picked.current_price)}
+                  />
+                  <Stat
+                    label={t.change}
+                    value={num(picked.price_change_percentage_24h) + '%'}
+                  />
+                  <Stat
+                    label={t.cap}
+                    value={usd(picked.market_cap)}
+                  />
+                  <Stat
+                    label="24h High / Low"
+                    value={`${usd(picked.high_24h)} / ${usd(picked.low_24h)}`}
+                  />
+                  {isDex && (
+                    <Stat
+                      label={t.liquidity}
+                      value={usd(picked.liquidity)}
+                    />
+                  )}
+                  {isDex && (
+                    <Stat
+                      label={t.network}
+                      value={picked.network || picked.chainId}
+                    />
+                  )}
+                </div>
+
+                {picked.sparkline_in_7d?.price?.length > 1 && (
+                  <svg
+                    className="chart"
+                    viewBox="0 0 700 100"
+                    preserveAspectRatio="none"
+                  >
+                    <polyline
+                      fill="none"
+                      stroke="#60a5fa"
+                      strokeWidth="2"
+                      points={picked.sparkline_in_7d.price
+                        .map((price, index, array) => {
+                          const min = Math.min(...array);
+                          const max = Math.max(...array);
+                          const y = 95 - ((price - min) / (max - min || 1)) * 85;
+                          return `${index * 700 / (array.length - 1)},${y}`;
+                        })
+                        .join(' ')}
+                    />
+                  </svg>
+                )}
+
+                {isDex && picked.dexUrl && (
+                  <p>
+                    <a href={picked.dexUrl} target="_blank" rel="noreferrer">
+                      مشاهده جفت معاملاتی در DexScreener
+                    </a>
+                  </p>
+                )}
+
+                <button onClick={() => setPicked(null)}>
+                  {t.close}
+                </button>
+              </div>
+            )}
+
+            <div className="tableWrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Coin / Token</th>
+                    <th>{t.price}</th>
+                    <th>{t.change}</th>
+                    <th>{t.cap}</th>
+                    <th>★</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {shown.map((coin, index) => (
+                    <tr key={coin.id}>
+                      <td>{coin.market_cap_rank || index + 1}</td>
+
+                      <td>
+                        <button
+                          className="assetButton"
+                          onClick={() => selectAsset(coin)}
+                        >
+                          <span className="coin">
+                            {coin.image && (
+                              <img src={coin.image} alt="" />
+                            )}
+                            {coin.name} {coin.symbol?.toUpperCase()}
+                          </span>
+                          <small className="muted">
+                            {coin.network || coin.source || ''}
+                          </small>
+                        </button>
+                      </td>
+
+                      <td>
+                        {coin.current_price
+                          ? usd(coin.current_price)
+                          : '—'}
+                      </td>
+
+                      <td
+                        className={
+                          Number(coin.price_change_percentage_24h) >= 0
+                            ? 'green'
+                            : 'red'
+                        }
+                      >
+                        {coin.price_change_percentage_24h == null
+                          ? '—'
+                          : num(coin.price_change_percentage_24h) + '%'}
+                      </td>
+
+                      <td>
+                        {coin.market_cap ? usd(coin.market_cap) : '—'}
+                      </td>
+
+                      <td>
+                        <button
+                          onClick={() =>
+                            setFavorites((old) =>
+                              old.includes(coin.id)
+                                ? old.filter((item) => item !== coin.id)
+                                : [...old, coin.id]
+                            )
+                          }
+                        >
+                          {favorites.includes(coin.id) ? '★' : '☆'}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              {!shown.length && !loading && !searchLoading && (
+                <p className="empty">{t.noResults}</p>
+              )}
+            </div>
+
+            <p className="muted">
+              {t.update}: {lastMarketUpdate || '—'}
+            </p>
+          </Panel>
+
+          <Panel title={t.alerts}>
+            <div className="controls">
+              <select
+                value={alertCoin}
+                onChange={(event) => setAlertCoin(event.target.value)}
+              >
+                {coins.map((coin) => (
+                  <option key={coin.id} value={coin.id}>
+                    {coin.name}
+                  </option>
+                ))}
+              </select>
+
+              <input
+                type="number"
+                value={alertPrice}
+                onChange={(event) => setAlertPrice(event.target.value)}
+                placeholder={t.target}
+              />
+
+              <button
+                className="primary"
+                onClick={() => {
+                  const price = Number(alertPrice);
+                  if (price > 0) {
+                    setAlerts((old) => [
+                      ...old,
+                      {
+                        id: String(Date.now()),
+                        coin: alertCoin,
+                        price,
+                      },
+                    ]);
+                    setAlertPrice('');
+                  }
+                }}
+              >
+                {t.add}
+              </button>
+            </div>
+
+            {alerts.map((alert) => (
+              <Row
+                key={alert.id}
+                label={
+                  coins.find((coin) => coin.id === alert.coin)?.name ||
+                  alert.coin
+                }
+                value={
+                  <>
+                    {usd(alert.price)}
+                    {triggeredAlerts.includes(alert.id) && (
+                      <span className="green"> · Reached</span>
+                    )}
+                    <button
+                      onClick={() => {
+                        setAlerts((old) =>
+                          old.filter((item) => item.id !== alert.id)
+                        );
+                        setTriggeredAlerts((old) =>
+                          old.filter((id) => id !== alert.id)
+                        );
+                      }}
+                    >
+                      ×
+                    </button>
+                  </>
+                }
+              />
+            ))}
+
+            <p className="muted">{t.alertNote}</p>
+          </Panel>
+        </>
+      )}
+
+      {tab === 'wallet' && (
+        <Panel title={t.wallet}>
+          {!isConnected ? (
+            <button
+              className="primary"
+              onClick={() => open({ view: 'Connect' })}
+            >
+              {t.connect}
+            </button>
+          ) : (
+            <>
+              <Row
+                label={t.network}
+                value={`${Number(chainId) === CHAIN_ID ? 'BNB Smart Chain' : 'Other'} (${chainId})`}
+              />
+
+              <Row label={t.address} value={address} />
+
+              <div className="stats">
+                <Stat
+                  label="BNB"
+                  value={bnb.data ? bnb.data.formatted : '—'}
+                />
+                <Stat label="USDT" value={tok(usdt.data)} />
+                <Stat label="SGT" value={tok(sgt.data)} />
+              </div>
+            </>
+          )}
+
+          <div className="notice">{t.safe}</div>
+        </Panel>
+      )}
+
+      {tab === 'smart' && (
+        <>
+          <Panel title={t.smart}>
+            <div className="stats">
+              <Stat label="Gift Round" value={round.data?.toString()} />
+              <Stat label="Gift List Size" value={size.data?.toString()} />
+              <Stat
+                label="Global Token Balance"
+                value={tok(global.data)}
+              />
+              <Stat label="Bank USDT" value={tok(bankUSD.data)} />
+            </div>
+          </Panel>
+
+          <Panel title={t.account}>
+            {!isConnected ? (
+              <button
+                className="primary"
+                onClick={() => open({ view: 'Connect' })}
+              >
+                {t.connect}
+              </button>
+            ) : (
+              <>
+                <Row label="Account ID" value={accountId?.toString()} />
+
+                <div className="stats">
+                  <Stat
+                    label="Total Left"
+                    value={field(owner.data, 'Total_Left', 1)?.toString()}
+                  />
+                  <Stat
+                    label="Total Right"
+                    value={field(owner.data, 'Total_Right', 2)?.toString()}
+                  />
+                  <Stat
+                    label="Current Left"
+                    value={field(owner.data, 'Current_Left', 3)?.toString()}
+                  />
+                  <Stat
+                    label="Current Right"
+                    value={field(owner.data, 'Current_Right', 4)?.toString()}
+                  />
+                  <Stat
+                    label="Directs"
+                    value={field(owner.data, 'Directs_Count', 5)?.toString()}
+                  />
+                </div>
+              </>
+            )}
+          </Panel>
+
+          <Panel title={t.gift}>
+            <div className="stats">
+              <Stat label="Gift received USDT" value={tok(gift.data?.[0])} />
+              <Stat label="Days since Gift" value={gift.data?.[1]?.toString()} />
+              <Stat label="Free Token" value={pct(gift.data?.[2])} />
+              <Stat label="Caller reward USDT" value={tok(gift.data?.[3])} />
+              <Stat label="Hours since Caller" value={gift.data?.[4]?.toString()} />
+              <Stat label="Hours since buy" value={gift.data?.[5]?.toString()} />
+              {[6, 7, 8, 9].map((index) => (
+                <Stat
+                  key={index}
+                  label={`Tier ${index - 5}`}
+                  value={pct(gift.data?.[index])}
+                />
+              ))}
+            </div>
+          </Panel>
+
+          <Panel title={t.pay}>
+            <div className="stats">
+              <Stat label="Pay status" value={pct(status.data)} />
+              <Stat label="Points" value={points.data?.toString()} />
+              <Stat label="Hours since Reward" value={hours.data?.toString()} />
+              <Stat label="Pay contract balance" value={tok(payUSD.data)} />
+            </div>
+
+            <p className="notice">
+              ABI و داده‌های قرارداد Pay هنوز مستقل تأیید نشده‌اند؛
+              ارقام این بخش را قطعی در نظر نگیرید.
+            </p>
+          </Panel>
+
+          <Panel title={t.modes}>
+            {[
+              ['gift', 'Gift'],
+              ['distribute', 'Distribute'],
+              ['pay', 'Pay Reward'],
+            ].map(([key, label]) => (
+              <div className="mode" key={key}>
+                <b>{label}</b>
+                <div className="modes">
+                  {['OFF', 'MANUAL', 'AUTO'].map((mode) => (
+                    <button
+                      key={mode}
+                      className={modes[key] === mode ? 'primary' : ''}
+                      onClick={() => changeMode(key, mode)}
+                    >
+                      {mode}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+
+            <p className="notice">
+              اطلاعات SmartGlobal به‌صورت خودکار هر ۳۰ ثانیه تازه می‌شود.
+              حالت AUTO فقط حالت نمایش و بررسی اطلاعات است.
+              هیچ تراکنشی خودکار ارسال نمی‌شود.
+            </p>
+
+            <Row
+              label="Proposal target"
+              value={field(proposal.data, 'target', 0)}
+            />
+
+            <Row
+              label="Proposal type / stage"
+              value={`${field(proposal.data, 'pType', 1) ?? '—'} / ${field(proposal.data, 'stage', 4) ?? '—'}`}
+            />
+
+            <button className="primary" onClick={refreshAll}>
+              {t.refresh}
+            </button>
+
+            <p className="muted">
+              Last refresh: {lastRefresh || 'Automatic'}
+            </p>
+
+            {notice && <p className="notice">{notice}</p>}
+          </Panel>
+
+          <p className="notice">{t.safe}</p>
+        </>
+      )}
+
+      <footer>
+        Crypto Explorer · SmartGlobal · BNB Smart Chain · Read-only
+      </footer>
+    </main>
+  );
+}
