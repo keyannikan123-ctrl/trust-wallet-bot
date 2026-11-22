@@ -25,7 +25,7 @@ export async function fetchMarketCoins() {
   return data;
 }
 
-// جستجوی ارزهای ثبت‌شده در CoinGecko
+// جستجوی ارزهای CoinGecko
 async function searchCoinGecko(query) {
   const data = await getJSON(
     `${API}/search?query=${encodeURIComponent(query)}`
@@ -34,44 +34,106 @@ async function searchCoinGecko(query) {
   return (data.coins || []).map(coin => ({
     id: `cg:${coin.id}`,
     kind: 'coingecko',
-    coinId: coin.id,
+    source: 'CoinGecko',
     name: coin.name,
     symbol: coin.symbol,
     image: coin.thumb,
+    coinId: coin.id,
     market_cap_rank: coin.market_cap_rank,
+    chainId: null,
+    network: 'CoinGecko',
   }));
 }
 
-// جستجوی توکن‌ها و جفت‌های معاملاتی
+// جستجوی توکن‌ها در DexScreener
 async function searchDexScreener(query) {
   const data = await getJSON(
     `${DEX_API}/search?q=${encodeURIComponent(query)}`
   );
 
-  const pairs = data.pairs || [];
+  const pairs = Array.isArray(data.pairs) ? data.pairs : [];
 
-  return pairs.map(pair => ({
-    id: `dex:${pair.chainId}:${pair.pairAddress}`,
-    kind: 'dex',
-    name: pair.baseToken?.name || 'Unknown',
-    symbol: pair.baseToken?.symbol || '',
-    image: pair.info?.imageUrl || '',
-    current_price: Number(pair.priceUsd) || 0,
-    price_change_percentage_24h:
-      Number(pair.priceChange?.h24) || 0,
-    market_cap: Number(pair.marketCap || pair.fdv) || 0,
-    total_volume: Number(pair.volume?.h24) || 0,
-    liquidity: Number(pair.liquidity?.usd) || 0,
-    chainId: pair.chainId,
-    tokenAddress: pair.baseToken?.address,
-    pairAddress: pair.pairAddress,
-    dexUrl: pair.url,
-  }));
+  return pairs
+    .filter(pair => pair.baseToken?.address)
+    .map(pair => ({
+      id: `dex:${pair.chainId}:${pair.baseToken.address.toLowerCase()}`,
+      kind: 'dex',
+      source: 'DexScreener',
+
+      name: pair.baseToken?.name || 'Unknown',
+      symbol: pair.baseToken?.symbol || '',
+      image: pair.info?.imageUrl || '',
+
+      current_price: Number(pair.priceUsd) || 0,
+      price_change_percentage_24h:
+        Number(pair.priceChange?.h24) || 0,
+
+      market_cap: Number(pair.marketCap || 0),
+      fully_diluted_valuation: Number(pair.fdv || 0),
+      total_volume: Number(pair.volume?.h24) || 0,
+      liquidity: Number(pair.liquidity?.usd) || 0,
+
+      chainId: pair.chainId,
+      network: pair.chainId || 'Unknown',
+
+      tokenAddress: pair.baseToken.address,
+      pairAddress: pair.pairAddress,
+      dexUrl: pair.url,
+    }));
 }
 
-// جستجوی عمومی با نام، نماد یا آدرس قرارداد
+// حذف نتایج تکراری و نگهداری جفت با نقدینگی بهتر
+function removeDuplicates(items, query) {
+  const unique = new Map();
+  const q = query.trim().toLowerCase();
+
+  for (const item of items) {
+    const address = item.tokenAddress?.toLowerCase();
+
+    const key = address
+      ? `${item.chainId}:${address}`
+      : item.coinId
+        ? `cg:${item.coinId}`
+        : item.id;
+
+    const previous = unique.get(key);
+
+    if (!previous) {
+      unique.set(key, item);
+      continue;
+    }
+
+    const oldLiquidity = Number(previous.liquidity) || 0;
+    const newLiquidity = Number(item.liquidity) || 0;
+
+    if (newLiquidity > oldLiquidity) {
+      unique.set(key, item);
+    }
+  }
+
+  return [...unique.values()].sort((a, b) => {
+    const aAddress = a.tokenAddress?.toLowerCase();
+    const bAddress = b.tokenAddress?.toLowerCase();
+
+    // اولویت با آدرس قرارداد دقیق
+    if (aAddress === q && bAddress !== q) return -1;
+    if (bAddress === q && aAddress !== q) return 1;
+
+    // سپس ارزهای CoinGecko دارای رتبه بازار
+    const aRank = Number(a.market_cap_rank) || Infinity;
+    const bRank = Number(b.market_cap_rank) || Infinity;
+
+    if (aRank !== bRank) return aRank - bRank;
+
+    // سپس نقدینگی بیشتر
+    return (Number(b.liquidity) || 0) -
+      (Number(a.liquidity) || 0);
+  });
+}
+
+// جستجوی عمومی ارزها و توکن‌ها
 export async function searchMarketAssets(query) {
-  const q = query.trim();
+  const q = String(query || '').trim();
 
   if (!q) return [];
 
@@ -90,29 +152,22 @@ export async function searchMarketAssets(query) {
       ? results[1].value
       : [];
 
-  if (
-    results.every(result => result.status === 'rejected')
-  ) {
+  if (results.every(result => result.status === 'rejected')) {
     throw new Error('Search services are unavailable');
   }
 
-  const unique = new Map();
-
-  [...coins, ...tokens].forEach(item => {
-    const key = item.tokenAddress
-      ? item.tokenAddress.toLowerCase()
-      : item.coinId || item.id;
-
-    if (!unique.has(key)) {
-      unique.set(key, item);
-    }
-  });
-
-  return [...unique.values()].slice(0, 30);
+  return removeDuplicates(
+    [...coins, ...tokens],
+    q
+  ).slice(0, 50);
 }
 
 // دریافت اطلاعات کامل ارز انتخاب‌شده
 export async function fetchCoinMarket(asset) {
+  if (!asset) {
+    throw new Error('No asset selected');
+  }
+
   if (asset.kind === 'coingecko') {
     const data = await getJSON(
       `${API}/coins/markets?vs_currency=usd&ids=${encodeURIComponent(asset.coinId)}&sparkline=true&price_change_percentage=24h`
@@ -121,5 +176,9 @@ export async function fetchCoinMarket(asset) {
     return data[0] || null;
   }
 
-  return asset;
+  if (asset.kind === 'dex') {
+    return asset;
+  }
+
+  throw new Error('Unsupported asset type');
 }
