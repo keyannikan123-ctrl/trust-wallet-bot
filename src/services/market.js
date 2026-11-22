@@ -11,6 +11,11 @@ function isAddress(value) {
   return /^0x[a-fA-F0-9]{40}$/.test(String(value || '').trim());
 }
 
+function toNumber(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
 async function getJSON(url, timeoutMs = 15000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -37,6 +42,7 @@ async function getJSON(url, timeoutMs = 15000) {
   }
 }
 
+// دریافت اطلاعات اصلی بازار از CoinGecko
 async function fetchCoinGeckoMarket() {
   const data = await getJSON(
     `${API}/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=50&page=1&sparkline=true&price_change_percentage=24h`
@@ -48,10 +54,13 @@ async function fetchCoinGeckoMarket() {
 
   return data.map(coin => ({
     ...coin,
+    high_24h: toNumber(coin.high_24h),
+    low_24h: toNumber(coin.low_24h),
     dataSource: 'CoinGecko',
   }));
 }
 
+// منبع جایگزین CoinCap
 async function fetchCoinCapMarket() {
   const result = await getJSON(`${COINCAP_API}/assets?limit=50`);
   const assets = result?.data;
@@ -65,17 +74,20 @@ async function fetchCoinCapMarket() {
     name: coin.name,
     symbol: coin.symbol,
     image: '',
-    current_price: Number(coin.priceUsd) || 0,
-    market_cap: Number(coin.marketCapUsd) || 0,
-    total_volume: Number(coin.volumeUsd24Hr) || 0,
+    current_price: toNumber(coin.priceUsd),
+    market_cap: toNumber(coin.marketCapUsd),
+    total_volume: toNumber(coin.volumeUsd24Hr),
     price_change_percentage_24h:
-      Number(coin.changePercent24Hr) || 0,
+      toNumber(coin.changePercent24Hr),
     market_cap_rank: Number(coin.rank) || null,
+    high_24h: null,
+    low_24h: null,
     sparkline_in_7d: null,
     dataSource: 'CoinCap',
   }));
 }
 
+// منبع جایگزین Binance
 async function fetchBinanceMarket() {
   const data = await getJSON(`${BINANCE_API}/ticker/24hr`);
 
@@ -101,11 +113,13 @@ async function fetchBinanceMarket() {
       name: symbol,
       symbol,
       image: '',
-      current_price: Number(item.lastPrice) || 0,
-      market_cap: 0,
-      total_volume: Number(item.quoteVolume) || 0,
+      current_price: toNumber(item.lastPrice),
+      market_cap: null,
+      total_volume: toNumber(item.quoteVolume),
       price_change_percentage_24h:
-        Number(item.priceChangePercent) || 0,
+        toNumber(item.priceChangePercent),
+      high_24h: toNumber(item.highPrice),
+      low_24h: toNumber(item.lowPrice),
       market_cap_rank: index + 1,
       sparkline_in_7d: null,
       dataSource: 'Binance',
@@ -135,6 +149,7 @@ export async function fetchMarketCoins() {
   );
 }
 
+// جستجوی CoinGecko
 async function searchCoinGecko(query) {
   if (isAddress(query)) return [];
 
@@ -163,7 +178,7 @@ async function searchCoinGecko(query) {
       );
     }
   } catch (error) {
-    // تلاش جداگانه برای دریافت قیمت انجام می‌شود.
+    // در صورت خطای CoinGecko، جستجوی DexScreener ادامه می‌یابد.
   }
 
   const missingPriceCoins = coins
@@ -217,6 +232,8 @@ async function searchCoinGecko(query) {
         market.price_change_percentage_24h ?? null,
       market_cap: market.market_cap ?? null,
       total_volume: market.total_volume ?? null,
+      high_24h: toNumber(market.high_24h),
+      low_24h: toNumber(market.low_24h),
       sparkline_in_7d: market.sparkline_in_7d || null,
       chainId: null,
       network: 'CoinGecko',
@@ -224,6 +241,7 @@ async function searchCoinGecko(query) {
   });
 }
 
+// جستجوی قرارداد و توکن در DexScreener
 async function searchDexScreener(query) {
   const cleanQuery = String(query || '').trim();
 
@@ -243,13 +261,15 @@ async function searchDexScreener(query) {
       name: pair.baseToken?.name || 'Unknown',
       symbol: pair.baseToken?.symbol || '',
       image: pair.info?.imageUrl || '',
-      current_price: Number(pair.priceUsd) || 0,
+      current_price: toNumber(pair.priceUsd),
       price_change_percentage_24h:
-        Number(pair.priceChange?.h24) || 0,
-      market_cap: Number(pair.marketCap || 0),
-      fully_diluted_valuation: Number(pair.fdv || 0),
-      total_volume: Number(pair.volume?.h24) || 0,
-      liquidity: Number(pair.liquidity?.usd) || 0,
+        toNumber(pair.priceChange?.h24),
+      market_cap: toNumber(pair.marketCap),
+      fully_diluted_valuation: toNumber(pair.fdv),
+      total_volume: toNumber(pair.volume?.h24),
+      liquidity: toNumber(pair.liquidity?.usd),
+      high_24h: null,
+      low_24h: null,
       chainId: pair.chainId,
       network: pair.chainId || 'Unknown',
       tokenAddress: pair.baseToken.address,
@@ -258,6 +278,7 @@ async function searchDexScreener(query) {
     }));
 }
 
+// حذف تکرار واقعی فقط بر اساس شبکه و آدرس قرارداد
 function removeDuplicates(items, query) {
   const unique = new Map();
   const q = String(query || '').trim().toLowerCase();
@@ -304,13 +325,11 @@ function removeDuplicates(items, query) {
     if (aExact && !bExact) return -1;
     if (bExact && !aExact) return 1;
 
-    // PEPE شناخته‌شده در CoinGecko در جستجوی PEPE اولویت دارد.
     if (q === 'pepe') {
       if (a.coinId === 'pepe' && b.coinId !== 'pepe') return -1;
       if (b.coinId === 'pepe' && a.coinId !== 'pepe') return 1;
     }
 
-    // برای آدرس قرارداد PEPE اتریوم، همان قرارداد در اولویت است.
     if (q === PEPE_ETH_ADDRESS.toLowerCase()) {
       if (aAddress === q && bAddress !== q) return -1;
       if (bAddress === q && aAddress !== q) return 1;
@@ -356,11 +375,13 @@ export async function searchMarketAssets(query) {
   ).slice(0, 50);
 }
 
+// دریافت اطلاعات تکمیلی توکن انتخاب‌شده
 export async function fetchCoinMarket(asset) {
   if (!asset) {
     throw new Error('No asset selected');
   }
 
+  // اطلاعات CoinGecko
   if (asset.kind === 'coingecko') {
     const data = await getJSON(
       `${API}/coins/markets?vs_currency=usd&ids=${encodeURIComponent(asset.coinId)}&sparkline=true&price_change_percentage=24h`
@@ -370,14 +391,19 @@ export async function fetchCoinMarket(asset) {
       return asset;
     }
 
+    const market = data[0];
+
     return {
       ...asset,
-      ...data[0],
+      ...market,
       kind: 'coingecko',
       coinId: asset.coinId,
+      high_24h: toNumber(market.high_24h),
+      low_24h: toNumber(market.low_24h),
     };
   }
 
+  // اطلاعات DexScreener
   if (asset.kind === 'dex') {
     if (!asset.tokenAddress) {
       return asset;
@@ -396,7 +422,8 @@ export async function fetchCoinMarket(asset) {
 
       const matchingPairs = pairs
         .filter(pair =>
-          pair.baseToken?.address?.toLowerCase() === address
+          pair.baseToken?.address?.toLowerCase() === address &&
+          (!asset.chainId || pair.chainId === asset.chainId)
         )
         .sort((a, b) =>
           (Number(b.liquidity?.usd) || 0) -
@@ -409,18 +436,27 @@ export async function fetchCoinMarket(asset) {
 
       const pair = matchingPairs[0];
 
-      return {
+      const updatedAsset = {
         ...asset,
         name: pair.baseToken?.name || asset.name,
         symbol: pair.baseToken?.symbol || asset.symbol,
         image: pair.info?.imageUrl || asset.image,
-        current_price: Number(pair.priceUsd) || asset.current_price,
+        current_price:
+          toNumber(pair.priceUsd) ?? asset.current_price,
         price_change_percentage_24h:
-          Number(pair.priceChange?.h24) || 0,
-        market_cap: Number(pair.marketCap || 0),
-        fully_diluted_valuation: Number(pair.fdv || 0),
-        total_volume: Number(pair.volume?.h24) || 0,
-        liquidity: Number(pair.liquidity?.usd) || 0,
+          toNumber(pair.priceChange?.h24) ??
+          asset.price_change_percentage_24h,
+        market_cap:
+          toNumber(pair.marketCap) ?? asset.market_cap,
+        fully_diluted_valuation:
+          toNumber(pair.fdv) ??
+          asset.fully_diluted_valuation,
+        total_volume:
+          toNumber(pair.volume?.h24) ?? asset.total_volume,
+        liquidity:
+          toNumber(pair.liquidity?.usd) ?? asset.liquidity,
+        high_24h: asset.high_24h ?? null,
+        low_24h: asset.low_24h ?? null,
         chainId: pair.chainId || asset.chainId,
         network: pair.chainId || asset.network,
         tokenAddress: pair.baseToken.address,
@@ -428,6 +464,31 @@ export async function fetchCoinMarket(asset) {
         dexUrl: pair.url || asset.dexUrl || '',
         source: 'DexScreener',
       };
+
+      // فقط برای قرارداد دقیق PEPE اصلی اتریوم
+      // اطلاعات High و Low از CoinGecko گرفته می‌شود.
+      if (
+        address === PEPE_ETH_ADDRESS.toLowerCase() &&
+        String(pair.chainId).toLowerCase() === 'ethereum'
+      ) {
+        try {
+          const pepeMarket = await getJSON(
+            `${API}/coins/markets?vs_currency=usd&ids=pepe&sparkline=false`
+          );
+
+          if (Array.isArray(pepeMarket) && pepeMarket.length) {
+            updatedAsset.high_24h =
+              toNumber(pepeMarket[0].high_24h);
+
+            updatedAsset.low_24h =
+              toNumber(pepeMarket[0].low_24h);
+          }
+        } catch (error) {
+          // اگر CoinGecko پاسخ ندهد، مقدار خالی باقی می‌ماند.
+        }
+      }
+
+      return updatedAsset;
     } catch (error) {
       return asset;
     }
