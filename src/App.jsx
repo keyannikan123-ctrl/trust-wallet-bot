@@ -127,7 +127,6 @@ export default function App() {
         safe: 'این برنامه اطلاعات را می‌خواند و هیچ تراکنشی را خودکار ارسال نمی‌کند.',
         loading: 'در حال دریافت اطلاعات...',
         noResults: 'نتیجه‌ای پیدا نشد.',
-        auto: 'تازه‌سازی خودکار فعال است؛ هر ۳۰ ثانیه',
         network: 'شبکه',
         address: 'آدرس کیف پول',
         close: 'بستن جزئیات',
@@ -160,7 +159,6 @@ export default function App() {
         safe: 'This app reads information and does not automatically send transactions.',
         loading: 'Loading information...',
         noResults: 'No results found.',
-        auto: 'Automatic refresh is active; every 30 seconds',
         network: 'Network',
         address: 'Wallet address',
         close: 'Close details',
@@ -553,8 +551,6 @@ export default function App() {
 
               <button onClick={loadMarket}>{t.refresh}</button>
             </div>
-
-            <p className="muted">{t.auto}</p>
 
             {loading && <p className="muted">{t.loading}</p>}
             {marketError && <p className="error">{marketError}</p>}
