@@ -1,57 +1,65 @@
-* {
-  box-sizing: border-box;
+
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import { WagmiProvider } from 'wagmi';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+const rootElement = document.getElementById('root');
+
+function showError(error) {
+  if (!rootElement) return;
+
+  rootElement.innerHTML = `
+    <div style="padding:24px;color:white;background:#10233f;min-height:100vh;direction:rtl;font-family:Arial">
+      <h2>برنامه با خطا روبه‌رو شد</h2>
+      <p>لطفاً متن خطا را برای پشتیبانی بفرستید:</p>
+      <pre style="white-space:pre-wrap;overflow-wrap:anywhere;color:#ffd28a">${String(error?.stack || error)}</pre>
+    </div>
+  `;
 }
 
-body {
-  margin: 0;
-  font-family: Arial, sans-serif;
-  background: linear-gradient(135deg, #101827, #173b55);
-  color: white;
-  min-height: 100vh;
+window.addEventListener('error', (event) => {
+  showError(event.error || event.message);
+});
+
+window.addEventListener('unhandledrejection', (event) => {
+  showError(event.reason);
+});
+
+async function startApp() {
+  try {
+    const [{ config }, { default: App }] = await Promise.all([
+      import('./config.js'),
+      import('./App.jsx')
+    ]);
+
+    const { default: ReactApp } = await import('react');
+    const { default: ReactDOM } = await import('react-dom/client');
+    const { WagmiProvider } = await import('wagmi');
+    const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query');
+
+    const queryClient = new QueryClient();
+
+    ReactDOM.createRoot(rootElement).render(
+      <ReactApp.StrictMode>
+        <WagmiProvider config={config}>
+          <QueryClientProvider client={queryClient}>
+            <App />
+          </QueryClientProvider>
+        </WagmiProvider>
+      </ReactApp.StrictMode>
+    );
+
+    if ('serviceWorker' in navigator && import.meta.env.PROD) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker
+          .register(`${import.meta.env.BASE_URL}sw.js`)
+          .catch(showError);
+      });
+    }
+  } catch (error) {
+    showError(error);
+  }
 }
 
-.container {
-  width: 90%;
-  max-width: 500px;
-  margin: 80px auto;
-  padding: 30px 20px;
-  text-align: center;
-  background: #1d2d40;
-  border-radius: 18px;
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
-}
-
-h1 {
-  color: #55d6be;
-  font-size: 27px;
-}
-
-button {
-  background: #55d6be;
-  color: #102030;
-  border: none;
-  border-radius: 10px;
-  padding: 14px 25px;
-  font-size: 17px;
-  font-weight: bold;
-  cursor: pointer;
-  margin: 20px 0;
-}
-
-button:hover {
-  opacity: 0.85;
-}
-
-section {
-  overflow-wrap: anywhere;
-  background: #263d52;
-  padding: 15px;
-  border-radius: 10px;
-}
-
-.notice {
-  font-size: 13px;
-  color: #c5d3df;
-  line-height: 1.8;
-  margin-top: 25px;
-}
+startApp();
