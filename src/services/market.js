@@ -12,6 +12,7 @@ function isAddress(value) {
 }
 
 function toNumber(value) {
+  if (value === null || value === undefined || value === '') return null;
   const number = Number(value);
   return Number.isFinite(number) ? number : null;
 }
@@ -466,26 +467,44 @@ export async function fetchCoinMarket(asset) {
       };
 
       // فقط برای قرارداد دقیق PEPE اصلی اتریوم
-      // اطلاعات High و Low از CoinGecko گرفته می‌شود.
+      // ابتدا CoinGecko و سپس Binance بررسی می‌شود.
       if (
         address === PEPE_ETH_ADDRESS.toLowerCase() &&
         String(pair.chainId).toLowerCase() === 'ethereum'
       ) {
+        let high = null;
+        let low = null;
+
+        // منبع اول: CoinGecko
         try {
           const pepeMarket = await getJSON(
             `${API}/coins/markets?vs_currency=usd&ids=pepe&sparkline=false`
           );
 
           if (Array.isArray(pepeMarket) && pepeMarket.length) {
-            updatedAsset.high_24h =
-              toNumber(pepeMarket[0].high_24h);
-
-            updatedAsset.low_24h =
-              toNumber(pepeMarket[0].low_24h);
+            high = toNumber(pepeMarket[0].high_24h);
+            low = toNumber(pepeMarket[0].low_24h);
           }
         } catch (error) {
-          // اگر CoinGecko پاسخ ندهد، مقدار خالی باقی می‌ماند.
+          // در صورت محدودیت CoinGecko، منبع جایگزین آزمایش می‌شود.
         }
+
+        // منبع دوم: Binance؛ جفت PEPE/USDT
+        if (high === null || low === null) {
+          try {
+            const ticker = await getJSON(
+              `${BINANCE_API}/ticker/24hr?symbol=PEPEUSDT`
+            );
+
+            high = high ?? toNumber(ticker?.highPrice);
+            low = low ?? toNumber(ticker?.lowPrice);
+          } catch (error) {
+            // اگر هیچ منبعی پاسخ ندهد، مقدار خالی باقی می‌ماند.
+          }
+        }
+
+        updatedAsset.high_24h = high;
+        updatedAsset.low_24h = low;
       }
 
       return updatedAsset;
