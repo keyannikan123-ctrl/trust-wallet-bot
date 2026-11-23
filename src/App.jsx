@@ -324,6 +324,10 @@ export default function App() {
 
     const onVisible = () => {
       if (document.visibilityState === 'visible') {
+        setSearch('');
+        setSearchResults([]);
+        setSearchError('');
+        setPicked(null);
         loadMarket();
       }
     };
@@ -427,6 +431,9 @@ export default function App() {
 
       if (details) {
         setPicked(details);
+        setSearch('');
+        setSearchResults([]);
+        setSearchError('');
       }
     } catch (error) {
       setSearchError(
