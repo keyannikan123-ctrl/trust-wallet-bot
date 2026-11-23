@@ -1,65 +1,246 @@
 
-import React from 'react';
-import { createRoot } from 'react-dom/client';
-import { WagmiProvider } from 'wagmi';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-
-const rootElement = document.getElementById('root');
-
-function showError(error) {
-  if (!rootElement) return;
-
-  rootElement.innerHTML = `
-    <div style="padding:24px;color:white;background:#10233f;min-height:100vh;direction:rtl;font-family:Arial">
-      <h2>برنامه با خطا روبه‌رو شد</h2>
-      <p>لطفاً متن خطا را برای پشتیبانی بفرستید:</p>
-      <pre style="white-space:pre-wrap;overflow-wrap:anywhere;color:#ffd28a">${String(error?.stack || error)}</pre>
-    </div>
-  `;
+* {
+  box-sizing: border-box;
 }
 
-window.addEventListener('error', (event) => {
-  showError(event.error || event.message);
-});
+:root {
+  font-family: Arial, Tahoma, sans-serif;
+  color: #edf4ff;
+  background: #0b1424;
+  font-synthesis: none;
+}
 
-window.addEventListener('unhandledrejection', (event) => {
-  showError(event.reason);
-});
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background: linear-gradient(145deg, #0b1424, #142b46);
+  color: #edf4ff;
+  direction: rtl;
+}
 
-async function startApp() {
-  try {
-    const [{ config }, { default: App }] = await Promise.all([
-      import('./config.js'),
-      import('./App.jsx')
-    ]);
+button, input {
+  font: inherit;
+}
 
-    const { default: ReactApp } = await import('react');
-    const { default: ReactDOM } = await import('react-dom/client');
-    const { WagmiProvider } = await import('wagmi');
-    const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query');
+button {
+  cursor: pointer;
+  border: 1px solid #34506e;
+  border-radius: 10px;
+  padding: 10px 14px;
+  color: #eaf4ff;
+  background: #203b59;
+}
 
-    const queryClient = new QueryClient();
+button:hover {
+  filter: brightness(1.15);
+}
 
-    ReactDOM.createRoot(rootElement).render(
-      <ReactApp.StrictMode>
-        <WagmiProvider config={config}>
-          <QueryClientProvider client={queryClient}>
-            <App />
-          </QueryClientProvider>
-        </WagmiProvider>
-      </ReactApp.StrictMode>
-    );
+button.primary {
+  background: #38b99b;
+  border-color: #38b99b;
+  color: #06251f;
+  font-weight: bold;
+}
 
-    if ('serviceWorker' in navigator && import.meta.env.PROD) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker
-          .register(`${import.meta.env.BASE_URL}sw.js`)
-          .catch(showError);
-      });
-    }
-  } catch (error) {
-    showError(error);
+.app {
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.topbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px;
+  background: #142b46;
+  border: 1px solid #294766;
+  border-radius: 16px;
+  margin-bottom: 16px;
+}
+
+.topbar h1 {
+  margin: 0 0 7px;
+  font-size: 23px;
+}
+
+.topbar p {
+  margin: 0;
+  color: #a9bfd7;
+  line-height: 1.7;
+}
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 14px 0;
+}
+
+.panel {
+  padding: 17px;
+  margin: 14px 0;
+  border: 1px solid #294766;
+  border-radius: 15px;
+  background: rgba(20, 43, 70, 0.94);
+  overflow-wrap: anywhere;
+}
+
+.panel h2 {
+  margin: 0 0 15px;
+  font-size: 18px;
+  color: #67d8c0;
+}
+
+.search-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin-bottom: 14px;
+}
+
+input {
+  min-width: 0;
+  flex: 1;
+  padding: 12px;
+  color: white;
+  background: #0c1b2e;
+  border: 1px solid #3a5878;
+  border-radius: 10px;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
+  gap: 10px;
+}
+
+.stat {
+  min-width: 0;
+  padding: 13px;
+  border-radius: 11px;
+  background: #0e2035;
+  border: 1px solid #294766;
+  overflow-wrap: anywhere;
+}
+
+.stat small {
+  display: block;
+  color: #a9bfd7;
+  margin-bottom: 8px;
+}
+
+.stat b {
+  font-size: 16px;
+  overflow-wrap: anywhere;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 11px 0;
+  border-bottom: 1px solid #294766;
+}
+
+.row:last-child {
+  border-bottom: 0;
+}
+
+.muted {
+  color: #a9bfd7;
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+.notice {
+  padding: 12px;
+  margin: 12px 0;
+  color: #c9e9e1;
+  background: #153c3a;
+  border-radius: 10px;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+}
+
+.detail {
+  margin-top: 12px;
+}
+
+.table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 550px;
+}
+
+th, td {
+  padding: 11px 9px;
+  text-align: right;
+  border-bottom: 1px solid #294766;
+}
+
+th {
+  color: #67d8c0;
+  background: #10243b;
+}
+
+.coin-name {
+  font-weight: bold;
+}
+
+.mode {
+  padding: 13px 0;
+  border-bottom: 1px solid #294766;
+}
+
+.modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.diagnostic {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: #ffd28a;
+  background: #091523;
+  padding: 12px;
+  border-radius: 9px;
+  font-size: 12px;
+}
+
+footer {
+  padding: 20px 8px;
+  text-align: center;
+  color: #a9bfd7;
+  font-size: 12px;
+}
+
+@media (max-width: 600px) {
+  .app {
+    padding: 10px;
+  }
+
+  .topbar {
+    padding: 14px;
+  }
+
+  .topbar h1 {
+    font-size: 19px;
+  }
+
+  .panel {
+    padding: 13px;
   }
 }
-
-startApp();
