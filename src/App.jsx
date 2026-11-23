@@ -1,3 +1,4 @@
+
 import React, { useEffect, useMemo, useState } from 'react';
 import { useAppKit, useAppKitAccount, useAppKitNetwork } from '@reown/appkit/react';
 import { useBalance, useReadContract } from 'wagmi';
@@ -244,6 +245,7 @@ export default function App() {
       enabled: enabled && accountId !== undefined && BigInt(accountId) > 0n,
     },
   });
+
   const status = useReadContract({
     address: CONTRACTS.PAY,
     abi: payAbi,
@@ -451,8 +453,6 @@ export default function App() {
     setNotice('به‌روزرسانی انجام شد.');
   }
 
-  const isDex = picked?.kind === 'dex';
-
   const ownerError =
     owner.error?.shortMessage ||
     owner.error?.cause?.shortMessage ||
@@ -476,8 +476,8 @@ export default function App() {
           <p>قیمت ارزها، بررسی بازار و کیف پول · BNB Smart Chain</p>
         </div>
 
-        <button onClick={() => setLanguage(language === 'fa' ? 'en' : 'fa')}>
-          {language === 'fa' ? 'English' : 'فارسی'}
+        <button onClick={() => setLang(lang === 'fa' ? 'en' : 'fa')}>
+          {lang === 'fa' ? 'English' : 'فارسی'}
         </button>
       </header>
 
@@ -514,7 +514,7 @@ export default function App() {
                 setSearch(event.target.value);
                 setPicked(null);
               }}
-              placeholder="جستجوی نام، نماد یا آدرس قرارداد ارز..."
+              placeholder={t.search}
             />
 
             <button onClick={loadMarket}>{t.refresh}</button>
@@ -584,10 +584,10 @@ export default function App() {
             </table>
           </div>
 
-          {loading && <p className="muted">در حال دریافت اطلاعات...</p>}
+          {loading && <p className="muted">{t.loading}</p>}
           {marketError && <p className="notice">{marketError}</p>}
           {!loading && shown.length === 0 && (
-            <p className="muted">نتیجه‌ای پیدا نشد.</p>
+            <p className="muted">{t.noResults}</p>
           )}
         </Panel>
       )}
@@ -628,7 +628,7 @@ export default function App() {
             type="number"
             value={alertPrice}
             onChange={(event) => setAlertPrice(event.target.value)}
-            placeholder="قیمت هدف به دالر"
+            placeholder={t.target}
           />
 
           <button
@@ -650,7 +650,7 @@ export default function App() {
               setNotice('هشدار قیمت اضافه شد.');
             }}
           >
-            افزودن هشدار
+            {t.add} هشدار
           </button>
 
           {alerts.map((alert) => {
