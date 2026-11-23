@@ -8,8 +8,11 @@ import { erc20Abi, bankAbi, payAbi } from './contracts/abi';
 import { num, usd, tok, field, pct } from './utils/format';
 import {
   fetchMarketCoins,
+  fetchMoreMarketCoins,
   searchMarketAssets,
   fetchCoinMarket,
+  sortMarketAssets,
+  getNetworkName,
 } from './services/market';
 
 const REFRESH_MS = 30000;
@@ -35,6 +38,29 @@ const Row = ({ label, value }) => (
   </div>
 );
 
+function safeNumber(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function formatPrice(value) {
+  const n = safeNumber(value);
+  if (n === null) return '—';
+  if (n === 0) return '$0';
+  if (Math.abs(n) >= 1) return usd(n);
+  return '$' + n.toPrecision(6).replace(/0+$/, '').replace(/\.$/, '');
+}
+
+function formatSupply(value) {
+  const n = safeNumber(value);
+  if (n === null) return '—';
+  return new Intl.NumberFormat('en-US', {
+    notation: 'compact',
+    maximumFractionDigits: 3,
+  }).format(n);
+}
+
 export default function App() {
   const { open } = useAppKit();
   const { address, isConnected } = useAppKitAccount();
@@ -48,15 +74,23 @@ export default function App() {
   const [lang, setLang] = useState('fa');
 
   const [coins, setCoins] = useState([]);
+  const [marketPage, setMarketPage] = useState(1);
+  const [hasMorePages, setHasMorePages] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+
   const [search, setSearch] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState('');
 
   const [picked, setPicked] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [marketError, setMarketError] = useState('');
   const [lastMarketUpdate, setLastMarketUpdate] = useState('');
+
+  const [sortBy, setSortBy] = useState('market_cap');
+  const [filterBy, setFilterBy] = useState('all');
 
   const [favorites, setFavorites] = useState(() => {
     try {
@@ -135,6 +169,20 @@ export default function App() {
         rank: 'رتبه بازار',
         update: 'آخرین به‌روزرسانی',
         alertNote: 'هشدارها در داخل برنامه بررسی می‌شوند؛ اعلان بیرونی در این نسخه فعال نیست.',
+        sort: 'مرتب‌سازی',
+        filter: 'فیلتر',
+        all: 'همه',
+        gainers: 'بیشترین رشد',
+        losers: 'بیشترین کاهش',
+        volume: 'حجم معاملات',
+        loadMore: 'نمایش صفحه بعد',
+        contract: 'آدرس قرارداد',
+        supply: 'عرضه در گردش',
+        totalSupply: 'عرضه کل',
+        maxSupply: 'حداکثر عرضه',
+        fdv: 'ارزش کاملاً رقیق‌شده',
+        highLow: 'بالاترین / پایین‌ترین ۲۴ ساعت',
+        risk: 'بررسی ریسک',
       }
     : {
         title: 'Crypto Explorer',
@@ -167,6 +215,20 @@ export default function App() {
         rank: 'Market rank',
         update: 'Last update',
         alertNote: 'Alerts are checked inside the app; external notifications are not enabled in this version.',
+        sort: 'Sort',
+        filter: 'Filter',
+        all: 'All',
+        gainers: 'Top gainers',
+        losers: 'Top losers',
+        volume: 'Volume',
+        loadMore: 'Load next page',
+        contract: 'Contract address',
+        supply: 'Circulating supply',
+        totalSupply: 'Total supply',
+        maxSupply: 'Max supply',
+        fdv: 'Fully diluted valuation',
+        highLow: '24h High / Low',
+        risk: 'Risk check',
       };
 
   // کیف پول و موجودی‌ها
@@ -298,14 +360,17 @@ export default function App() {
     query: readOptions,
   });
 
-  // دریافت بازار در شروع و هر ۳۰ ثانیه
-  async function loadMarket() {
+  // دریافت بازار در شروع و تازه‌سازی خودکار
+  async function loadMarket(page = 1) {
     setLoading(true);
     setMarketError('');
 
     try {
-      const data = await fetchMarketCoins();
+      const data = await fetchMarketCoins(page);
+
       setCoins(data);
+      setMarketPage(page);
+      setHasMorePages(data.length >= 200);
       setLastMarketUpdate(new Date().toLocaleTimeString());
     } catch (error) {
       setMarketError(
@@ -317,10 +382,49 @@ export default function App() {
     }
   }
 
-  useEffect(() => {
-    loadMarket();
+  // دریافت صفحه بعدی
+  async function loadNextPage() {
+    if (loadingMore || !hasMorePages || search.trim()) return;
 
-    const timer = setInterval(loadMarket, REFRESH_MS);
+    setLoadingMore(true);
+
+    try {
+      const nextPage = marketPage + 1;
+      const data = await fetchMoreMarketCoins(nextPage);
+
+      setCoins((old) => {
+        const merged = [...old, ...data];
+        const unique = new Map();
+
+        merged.forEach((coin) => {
+          const key = coin.coinId || coin.id;
+          if (!unique.has(key)) unique.set(key, coin);
+        });
+
+        return [...unique.values()];
+      });
+
+      setMarketPage(nextPage);
+      setHasMorePages(data.length >= 200);
+      setLastMarketUpdate(new Date().toLocaleTimeString());
+    } catch (error) {
+      setMarketError(
+        'دریافت صفحه بعدی ناموفق شد: ' +
+          (error?.message || 'خطای شبکه')
+      );
+    } finally {
+      setLoadingMore(false);
+    }
+  }
+
+  useEffect(() => {
+    loadMarket(1);
+
+    const timer = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        loadMarket(1);
+      }
+    }, REFRESH_MS);
 
     const onVisible = () => {
       if (document.visibilityState === 'visible') {
@@ -328,19 +432,23 @@ export default function App() {
         setSearchResults([]);
         setSearchError('');
         setPicked(null);
-        loadMarket();
+        loadMarket(1);
       }
     };
 
+    const onOnline = () => loadMarket(1);
+
     document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('online', onOnline);
 
     return () => {
       clearInterval(timer);
       document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('online', onOnline);
     };
   }, []);
 
-  // جستجوی خودکار پس از مکث کوتاه در تایپ
+  // جستجوی خودکار با مکث ۴۵۰ میلی‌ثانیه
   useEffect(() => {
     const query = search.trim();
     let active = true;
@@ -391,7 +499,7 @@ export default function App() {
     localStorage.setItem('smartglobal-modes', JSON.stringify(modes));
   }, [modes]);
 
-  // بررسی خودکار هشدارهای قیمت
+  // بررسی هشدارهای قیمت
   useEffect(() => {
     if (!coins.length || !alerts.length) return;
 
@@ -413,20 +521,37 @@ export default function App() {
     }
   }, [coins, alerts, triggeredAlerts]);
 
-  const shown = useMemo(() => {
+  const baseShown = useMemo(() => {
     if (search.trim()) return searchResults;
 
-    if (tab === 'favorites') {
-      return coins.filter((coin) => favorites.includes(coin.id));
+    let rows = tab === 'favorites'
+      ? coins.filter((coin) => favorites.includes(coin.id))
+      : coins;
+
+    if (filterBy === 'gainers') {
+      rows = rows.filter(
+        (coin) => Number(coin.price_change_percentage_24h) > 0
+      );
+    } else if (filterBy === 'losers') {
+      rows = rows.filter(
+        (coin) => Number(coin.price_change_percentage_24h) < 0
+      );
     }
 
-    return coins;
-  }, [coins, favorites, search, searchResults, tab]);
+    return rows;
+  }, [coins, favorites, search, searchResults, tab, filterBy]);
+
+  const shown = useMemo(
+    () => sortMarketAssets(baseShown, sortBy),
+    [baseShown, sortBy]
+  );
 
   async function selectAsset(asset) {
-    try {
-      setPicked(null);
+    setDetailLoading(true);
+    setPicked(null);
+    setSearchError('');
 
+    try {
       const details = await fetchCoinMarket(asset);
 
       if (details) {
@@ -440,6 +565,8 @@ export default function App() {
         'دریافت جزئیات ارز ناموفق شد: ' +
           (error?.message || 'خطا')
       );
+    } finally {
+      setDetailLoading(false);
     }
   }
 
@@ -448,7 +575,7 @@ export default function App() {
   }
 
   async function refreshAll() {
-    await loadMarket();
+    await loadMarket(1);
 
     const queries = [
       round, size, global, bankUSD, owner, gift,
@@ -471,13 +598,14 @@ export default function App() {
       <style>{`
         *{box-sizing:border-box}
         body{margin:0;background:#0b1020;color:#eef2ff;font-family:Tahoma,Arial}
-        .app{max-width:1100px;margin:auto;padding:14px;min-height:100vh}
+        .app{max-width:1150px;margin:auto;padding:14px;min-height:100vh}
         .top,.row,.mode{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
         h1{font-size:23px}
         h2{font-size:17px;margin:0 0 12px}
         button,input,select{font:inherit}
         button{background:#18233d;color:white;border:1px solid #33415f;border-radius:9px;padding:9px 12px;cursor:pointer}
         button:hover{opacity:.85}
+        button:disabled{opacity:.45;cursor:not-allowed}
         .primary,.active{background:#2563eb}
         .nav,.controls,.modes{display:flex;gap:7px;flex-wrap:wrap;margin:12px 0}
         .panel{background:#121b30;border:1px solid #263653;border-radius:14px;padding:14px;margin:13px 0}
@@ -489,18 +617,22 @@ export default function App() {
         .controls input,.controls select{background:#0d1629;color:white;border:1px solid #33415f;border-radius:9px;padding:10px;min-width:120px}
         .controls input{flex:1}
         .tableWrap{overflow:auto}
-        table{width:100%;min-width:590px;border-collapse:collapse}
+        table{width:100%;min-width:620px;border-collapse:collapse}
         td,th{text-align:start;padding:10px 7px;border-bottom:1px solid #263653;font-size:13px}
         .coin{display:flex;gap:8px;align-items:center}
         .coin img{width:25px;height:25px;object-fit:contain}
         .green{color:#35d39a}.red,.error{color:#ff899d}
-        .notice{background:#192640;padding:12px;border-radius:10px;font-size:12px;line-height:1.8;margin-top:10px}
+        .notice{background:#192640;padding:12px;border-radius:10px;font-size:12px;line-height:1.8;margin-top:10px;overflow-wrap:anywhere}
         .chart{width:100%;height:110px;display:block}
         .mode{padding:10px 0;border-bottom:1px solid #263653}
         .muted{color:#9aa8c7;font-size:13px}
         .empty{text-align:center;padding:20px}
         footer{text-align:center;padding:20px;color:#91a1c2;font-size:12px}
         .assetButton{border:0;background:transparent;padding:4px;text-align:start}
+        .detailTitle{display:flex;gap:10px;align-items:center;margin-bottom:12px}
+        .detailTitle img{width:38px;height:38px;object-fit:contain}
+        .link{color:#83b7ff;overflow-wrap:anywhere}
+        .detailActions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
         @media(max-width:600px){.app{padding:9px}.panel{padding:11px}.mode button{padding:7px}}
       `}</style>
 
@@ -556,49 +688,86 @@ export default function App() {
                 placeholder={t.search}
               />
 
-              <button onClick={loadMarket}>{t.refresh}</button>
+              <button onClick={() => loadMarket(1)}>
+                {t.refresh}
+              </button>
+            </div>
+
+            <div className="controls">
+              <select
+                value={filterBy}
+                onChange={(event) => setFilterBy(event.target.value)}
+                aria-label={t.filter}
+              >
+                <option value="all">{t.all}</option>
+                <option value="gainers">{t.gainers}</option>
+                <option value="losers">{t.losers}</option>
+              </select>
+
+              <select
+                value={sortBy}
+                onChange={(event) => setSortBy(event.target.value)}
+                aria-label={t.sort}
+              >
+                <option value="market_cap">{t.cap}</option>
+                <option value="price">{t.price}</option>
+                <option value="change">{t.change}</option>
+                <option value="volume">{t.volume}</option>
+                <option value="liquidity">{t.liquidity}</option>
+              </select>
             </div>
 
             {loading && <p className="muted">{t.loading}</p>}
             {marketError && <p className="error">{marketError}</p>}
             {searchLoading && <p className="muted">{t.loading}</p>}
+            {detailLoading && <p className="muted">{t.loading}</p>}
             {searchError && <p className="error">{searchError}</p>}
 
             {picked && (
               <div className="notice">
-                <b>
-                  {picked.name} ({picked.symbol?.toUpperCase()})
-                </b>
+                <div className="detailTitle">
+                  {picked.image && <img src={picked.image} alt="" />}
+                  <div>
+                    <b>
+                      {picked.name} ({picked.symbol?.toUpperCase()})
+                    </b>
+                    <div className="muted">
+                      {picked.network || picked.source || ''}
+                    </div>
+                  </div>
+                </div>
 
                 <div className="stats">
-                  <Stat
-                    label={t.price}
-                    value={usd(picked.current_price)}
-                  />
+                  <Stat label={t.price} value={formatPrice(picked.current_price)} />
                   <Stat
                     label={t.change}
-                    value={num(picked.price_change_percentage_24h) + '%'}
+                    value={
+                      picked.price_change_percentage_24h == null
+                        ? '—'
+                        : num(picked.price_change_percentage_24h) + '%'
+                    }
                   />
+                  <Stat label={t.cap} value={usd(picked.market_cap)} />
                   <Stat
-                    label={t.cap}
-                    value={usd(picked.market_cap)}
+                    label={t.highLow}
+                    value={
+                      picked.high_24h == null && picked.low_24h == null
+                        ? '—'
+                        : `${formatPrice(picked.high_24h)} / ${formatPrice(picked.low_24h)}`
+                    }
                   />
+                  <Stat label={t.volume} value={usd(picked.total_volume)} />
+                  <Stat label={t.fdv} value={usd(picked.fully_diluted_valuation)} />
+                  <Stat label={t.liquidity} value={usd(picked.liquidity)} />
+                  <Stat label={t.supply} value={formatSupply(picked.circulating_supply)} />
+                  <Stat label={t.totalSupply} value={formatSupply(picked.total_supply)} />
+                  <Stat label={t.maxSupply} value={formatSupply(picked.max_supply)} />
+                  <Stat label={t.rank} value={picked.market_cap_rank ?? '—'} />
                   <Stat
-                    label="24h High / Low"
-                    value={`${usd(picked.high_24h)} / ${usd(picked.low_24h)}`}
+                    label={t.network}
+                    value={getNetworkName(picked.chainId || picked.network)}
                   />
-                  {isDex && (
-                    <Stat
-                      label={t.liquidity}
-                      value={usd(picked.liquidity)}
-                    />
-                  )}
-                  {isDex && (
-                    <Stat
-                      label={t.network}
-                      value={picked.network || picked.chainId}
-                    />
-                  )}
+                  <Stat label={t.source} value={picked.dataSource || picked.source || '—'} />
                 </div>
 
                 {picked.sparkline_in_7d?.price?.length > 1 && (
@@ -623,13 +792,40 @@ export default function App() {
                   </svg>
                 )}
 
-                {isDex && picked.dexUrl && (
-                  <p>
-                    <a href={picked.dexUrl} target="_blank" rel="noreferrer">
-                      مشاهده جفت معاملاتی در DexScreener
-                    </a>
-                  </p>
+                {picked.tokenAddress && (
+                  <Row label={t.contract} value={picked.tokenAddress} />
                 )}
+
+                <Row
+                  label={t.risk}
+                  value="امنیت قرارداد به‌صورت قطعی تأیید نشده است؛ پیش از هر تعامل، قرارداد را مستقل بررسی کنید."
+                />
+
+                <div className="detailActions">
+                  {picked.dexUrl && (
+                    <a className="link" href={picked.dexUrl} target="_blank" rel="noreferrer">
+                      DexScreener
+                    </a>
+                  )}
+
+                  {picked.explorerUrl && (
+                    <a className="link" href={picked.explorerUrl} target="_blank" rel="noreferrer">
+                      Block Explorer
+                    </a>
+                  )}
+
+                  {picked.homepage && (
+                    <a className="link" href={picked.homepage} target="_blank" rel="noreferrer">
+                      Website
+                    </a>
+                  )}
+
+                  {picked.whitepaper && (
+                    <a className="link" href={picked.whitepaper} target="_blank" rel="noreferrer">
+                      Whitepaper
+                    </a>
+                  )}
+                </div>
 
                 <button onClick={() => setPicked(null)}>
                   {t.close}
@@ -661,9 +857,7 @@ export default function App() {
                           onClick={() => selectAsset(coin)}
                         >
                           <span className="coin">
-                            {coin.image && (
-                              <img src={coin.image} alt="" />
-                            )}
+                            {coin.image && <img src={coin.image} alt="" />}
                             {coin.name} {coin.symbol?.toUpperCase()}
                           </span>
                           <small className="muted">
@@ -672,11 +866,7 @@ export default function App() {
                         </button>
                       </td>
 
-                      <td>
-                        {coin.current_price
-                          ? usd(coin.current_price)
-                          : '—'}
-                      </td>
+                      <td>{formatPrice(coin.current_price)}</td>
 
                       <td
                         className={
@@ -716,6 +906,18 @@ export default function App() {
                 <p className="empty">{t.noResults}</p>
               )}
             </div>
+
+            {!search.trim() && tab === 'market' && hasMorePages && (
+              <div className="controls">
+                <button
+                  className="primary"
+                  onClick={loadNextPage}
+                  disabled={loadingMore}
+                >
+                  {loadingMore ? t.loading : t.loadMore}
+                </button>
+              </div>
+            )}
 
             <p className="muted">
               {t.update}: {lastMarketUpdate || '—'}
@@ -837,10 +1039,7 @@ export default function App() {
             <div className="stats">
               <Stat label="Gift Round" value={round.data?.toString()} />
               <Stat label="Gift List Size" value={size.data?.toString()} />
-              <Stat
-                label="Global Token Balance"
-                value={tok(global.data)}
-              />
+              <Stat label="Global Token Balance" value={tok(global.data)} />
               <Stat label="Bank USDT" value={tok(bankUSD.data)} />
             </div>
           </Panel>
