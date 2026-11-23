@@ -223,29 +223,31 @@ export default function App() {
     query: readOptions,
   });
 
-  const owner = useReadContract({
+    const owner = useReadContract({
     address: CONTRACTS.BANK,
     abi: bankAbi,
     functionName: 'ownerInfo',
     args: address ? [address] : undefined,
+    account: address,
     chainId: CHAIN_ID,
     query: { ...readOptions, enabled },
   });
 
   const accountId = field(owner.data, 'ID', 0);
 
+  
   const gift = useReadContract({
     address: CONTRACTS.BANK,
     abi: bankAbi,
     functionName: 'ownerBankInfo',
     args: accountId !== undefined ? [accountId] : undefined,
+    account: address,
     chainId: CHAIN_ID,
     query: {
       ...readOptions,
       enabled: enabled && accountId !== undefined && BigInt(accountId) > 0n,
     },
   });
-
   const status = useReadContract({
     address: CONTRACTS.PAY,
     abi: payAbi,
