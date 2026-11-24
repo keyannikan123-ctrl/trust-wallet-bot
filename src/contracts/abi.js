@@ -1,4 +1,3 @@
-
 export const erc20Abi = [
   {
     type: 'function',
@@ -86,6 +85,20 @@ export const bankAbi = [
       { name: 'votes100', type: 'uint256' },
       { name: 'stage', type: 'uint8' },
     ],
+  },
+  {
+    type: 'function',
+    name: 'registerForGift',
+    stateMutability: 'nonpayable',
+    inputs: [],
+    outputs: [],
+  },
+  {
+    type: 'function',
+    name: 'distributeBank',
+    stateMutability: 'nonpayable',
+    inputs: [],
+    outputs: [],
   },
 ];
 
