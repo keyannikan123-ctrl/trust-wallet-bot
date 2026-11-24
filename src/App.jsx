@@ -3,6 +3,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useAppKit, useAppKitAccount, useAppKitNetwork } from '@reown/appkit/react';
 import { useBalance, useReadContract } from 'wagmi';
 
+import SmartGlobalActions from './SmartGlobalActions';
+
 import { CHAIN_ID, CONTRACTS } from './contracts/addresses';
 import { erc20Abi, bankAbi, payAbi } from './contracts/abi';
 import { num, usd, tok, field, pct } from './utils/format';
@@ -223,7 +225,7 @@ export default function App() {
     query: readOptions,
   });
 
-    const owner = useReadContract({
+  const owner = useReadContract({
     address: CONTRACTS.BANK,
     abi: bankAbi,
     functionName: 'ownerInfo',
@@ -235,7 +237,6 @@ export default function App() {
 
   const accountId = field(owner.data, 'ID', 0);
 
-  
   const gift = useReadContract({
     address: CONTRACTS.BANK,
     abi: bankAbi,
@@ -248,6 +249,7 @@ export default function App() {
       enabled: enabled && accountId !== undefined && BigInt(accountId) > 0n,
     },
   });
+
   const status = useReadContract({
     address: CONTRACTS.PAY,
     abi: payAbi,
@@ -778,6 +780,18 @@ export default function App() {
               ))}
             </div>
           </Panel>
+
+          <SmartGlobalActions
+            address={address}
+            enabled={enabled}
+            accountId={accountId}
+            ownerData={owner.data}
+            giftData={gift.data}
+            pointsData={points.data}
+            bankBalance={bankUSD.data}
+            giftListSize={size.data}
+            modes={modes}
+          />
 
           <Panel title={t.pay}>
             <div className="stats">
