@@ -8,7 +8,9 @@ const PEPE_ETH_ADDRESS =
   '0x6982508145454Ce325dDbE47a25d4ec3d2311933';
 
 const PAGE_SIZE = 100;
-
+const DETAILS_CACHE_TTL_MS = 60 * 1000;
+const detailsCache = new Map();
+const detailsRequests = new Map();
 const EXPLORERS = {
   ethereum: 'https://etherscan.io/token/',
   bsc: 'https://bscscan.com/token/',
@@ -563,7 +565,14 @@ async function fetchCoinGeckoDetails(asset) {
 
   const market = data.market_data || {};
   const links = data.links || {};
+const platforms = data.platforms || {};
 
+const contractEntry = Object.entries(platforms).find(
+  ([, address]) => typeof address === 'string' && address.trim()
+);
+
+const contractChain = contractEntry?.[0] || '';
+const contractAddress = contractEntry?.[1] || '';
   const sparkline = market.sparkline_7d?.price;
 
   return {
@@ -640,9 +649,20 @@ async function fetchCoinGeckoDetails(asset) {
         : '',
 
     whitepaper: links.whitepaper || '',
+chainId: contractChain || asset.chainId || '',
 
-    explorerUrl:
-      links.blockchain_site?.find(Boolean) || '',
+network: contractChain
+  ? getNetworkName(contractChain)
+  : asset.network || '',
+
+tokenAddress: contractAddress || asset.tokenAddress || '',
+
+explorerUrl:
+  links.blockchain_site?.find(Boolean) ||
+  explorerUrl(contractChain, contractAddress) ||
+  asset.explorerUrl ||
+  '',
+
 
     source: 'CoinGecko',
     dataSource: 'CoinGecko'
@@ -776,31 +796,59 @@ async function fetchDexDetails(asset) {
 }
 
 // دریافت جزئیات کامل ارز انتخاب‌شده
-export async function fetchCoinMarket(asset) {
-  if (!asset) {
-    throw new Error('No asset selected');
-  }
-
+// دریافت جزئیات ارز بدون حافظه موقت
+async function fetchCoinMarketUncached(asset) {
   if (asset.kind === 'coingecko') {
-    try {
-      return await fetchCoinGeckoDetails(asset);
-    } catch (error) {
-      return asset;
-    }
+    return await fetchCoinGeckoDetails(asset);
   }
 
   if (asset.kind === 'dex') {
-    try {
-      return await fetchDexDetails(asset);
-    } catch (error) {
-      return asset;
-    }
+    return await fetchDexDetails(asset);
   }
 
   return asset;
 }
 
-// مرتب‌سازی بازار
+// دریافت جزئیات ارز با حافظه موقت ۶۰ ثانیه‌ای
+export async function fetchCoinMarket(asset) {
+  if (!asset) {
+    throw new Error('No asset selected');
+  }
+
+  const cacheKey = asset.kind === 'coingecko'
+    ? `coingecko:${asset.coinId || asset.id || asset.symbol}`
+    : `dex:${asset.chainId || ''}:${asset.tokenAddress || asset.pairAddress || asset.symbol}`;
+
+  const cached = detailsCache.get(cacheKey);
+
+  if (cached && Date.now() - cached.time < DETAILS_CACHE_TTL_MS) {
+    return { ...cached.data };
+  }
+
+  if (detailsRequests.has(cacheKey)) {
+    return detailsRequests.get(cacheKey);
+  }
+
+  const request = (async () => {
+    try {
+      const data = await fetchCoinMarketUncached(asset);
+      detailsCache.set(cacheKey, {
+        time: Date.now(),
+        data
+      });
+      return data;
+    } catch (error) {
+      return asset;
+    } finally {
+      detailsRequests.delete(cacheKey);
+    }
+  })();
+
+  detailsRequests.set(cacheKey, request);
+  return request;
+
+} 
+//مرتب‌سازی بازار
 export function sortMarketAssets(items, sortBy = 'market_cap') {
   const rows = [...(items || [])];
 
