@@ -507,7 +507,43 @@ export default function App() {
             {label}
           </button>
         ))}
-      </nav>
+      </nav>  
+      <section className="market-ticker">
+        <strong>قیمت زنده</strong>
+        {coins
+          .filter((coin) =>
+            ['btc', 'eth', 'bnb', 'sol', 'usdt'].includes(
+              String(coin.symbol || '').toLowerCase()
+            )
+          )
+          .map((coin) => (
+            <span className="ticker-item" key={coin.id}>
+              <b>{coin.symbol.toUpperCase()}</b>
+              <span>
+                ${Number(coin.current_price || 0).toLocaleString('en-US', {
+                  maximumSignificantDigits: 7
+                })}
+              </span>
+              <small className={
+                Number(coin.price_change_percentage_24h) >= 0
+                  ? 'positive'
+                  : 'negative'
+              }>
+                {coin.price_change_percentage_24h == null
+                  ? '—'
+                  : `${Number(coin.price_change_percentage_24h).toFixed(2)}%`}
+              </small>
+            </span>
+          ))}
+      </section>
+
+      <section className="ad-slot">
+        <div>
+          <strong>فضای تبلیغاتی</strong>
+          <p>برای همکاری تجاری و معرفی خدمات معتبر</p>
+        </div>
+        <span>تبلیغ واقعی هنوز وصل نشده است</span>
+      </section>
 
       {tab === 'market' && (
         <Panel title={t.market}>
