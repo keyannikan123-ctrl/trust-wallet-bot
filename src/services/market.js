@@ -7,7 +7,7 @@ const BINANCE_API = 'https://api.binance.com/api/v3';
 const PEPE_ETH_ADDRESS =
   '0x6982508145454Ce325dDbE47a25d4ec3d2311933';
 
-const PAGE_SIZE = 250;
+const PAGE_SIZE = 100;
 
 const EXPLORERS = {
   ethereum: 'https://etherscan.io/token/',
