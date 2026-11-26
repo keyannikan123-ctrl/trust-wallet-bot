@@ -1,4 +1,4 @@
-
+l
 import React, { useEffect, useMemo, useState } from 'react';
 import { useAppKit, useAppKitAccount, useAppKitNetwork } from '@reown/appkit/react';
 import { useBalance, useReadContract } from 'wagmi';
@@ -568,7 +568,7 @@ export default function App() {
                         ? '—'
                         : `${Number(coin.price_change_percentage_24h).toFixed(2)}%`}
                     </td>
-                    <td>${Number(coin.market_cap || 0).toLocaleString()}</td>
+                    <td>{coin.market_cap == null ? '—' : `$${Number(coin.market_cap).toLocaleString()}`}</td>
                     <td>
                       <button
                         onClick={() =>
