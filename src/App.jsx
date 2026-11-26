@@ -563,15 +563,104 @@ export default function App() {
           {searchLoading && <p className="muted">در حال جستجو...</p>}
           {searchError && <p className="notice">{searchError}</p>}
 
-          {picked && (
-            <div className="detail">
-              <h3>{picked.name || picked.symbol}</h3>
-              <p>قیمت: ${Number(picked.current_price || 0).toLocaleString()}</p>
-              <p>تغییر ۲۴ ساعته: {picked.price_change_percentage_24h ?? '—'}%</p>
-              <p>ارزش بازار: ${Number(picked.market_cap || 0).toLocaleString()}</p>
-              <button onClick={() => setPicked(null)}>بستن جزئیات</button>
-            </div>
-          )}
+          
+{picked && (
+  <div className="detail panel">
+    <h3>{picked.name || picked.symbol}</h3>
+    <p>
+      نماد: {picked.symbol?.toUpperCase() || '—'} |
+      منبع اطلاعات: {picked.dataSource || picked.source || '—'}
+    </p>
+
+    <div className="stats">
+      {[
+        ['قیمت فعلی', picked.current_price, true],
+        ['بالاترین قیمت ۲۴ ساعت', picked.high_24h, true],
+        ['پایین‌ترین قیمت ۲۴ ساعت', picked.low_24h, true],
+        ['ارزش بازار', picked.market_cap, true],
+        ['حجم معاملات ۲۴ ساعت', picked.total_volume, true],
+        ['ارزش رقیق‌شده', picked.fully_diluted_valuation, true],
+        ['عرضه در گردش', picked.circulating_supply, false],
+        ['عرضه کل', picked.total_supply, false],
+        ['حداکثر عرضه', picked.max_supply, false],
+        ['بالاترین قیمت تاریخی', picked.ath, true],
+        ['پایین‌ترین قیمت تاریخی', picked.atl, true],
+        ['نقدینگی', picked.liquidity, true],
+      ].map(([label, value, isPrice]) => (
+        <div className="stat" key={label}>
+          <small>{label}</small>
+          <b>
+            {value == null
+              ? '—'
+              : isPrice
+                ? `$${Number(value).toLocaleString('en-US', {
+                    maximumSignificantDigits: 8
+                  })}`
+                : Number(value).toLocaleString('en-US', {
+                    maximumSignificantDigits: 8
+                  })}
+          </b>
+        </div>
+      ))}
+
+      <div className="stat">
+        <small>تغییر قیمت ۲۴ ساعته</small>
+        <b>
+          {picked.price_change_percentage_24h == null
+            ? '—'
+            : `${Number(picked.price_change_percentage_24h).toFixed(2)}%`}
+        </b>
+      </div>
+
+      <div className="stat">
+        <small>رتبه بازار</small>
+        <b>{picked.market_cap_rank ?? '—'}</b>
+      </div>
+
+      <div className="stat">
+        <small>شبکه</small>
+        <b>{picked.network || '—'}</b>
+      </div>
+    </div>
+
+    {picked.tokenAddress && (
+      <p>آدرس قرارداد: {picked.tokenAddress}</p>
+    )}
+
+    {picked.explorerUrl && (
+      <p>
+        <a href={picked.explorerUrl} target="_blank" rel="noreferrer">
+          مشاهده در کاوشگر بلاک‌چین
+        </a>
+      </p>
+    )}
+
+    {picked.dexUrl && (
+      <p>
+        <a href={picked.dexUrl} target="_blank" rel="noreferrer">
+          مشاهده جفت معاملاتی
+        </a>
+      </p>
+    )}
+
+    {picked.homepage && (
+      <p>
+        <a href={picked.homepage} target="_blank" rel="noreferrer">
+          وب‌سایت رسمی
+        </a>
+      </p>
+    )}
+
+    <p className="muted">
+      اطلاعات موجود بر اساس داده‌های منبع نمایش داده می‌شود و توصیه خرید یا فروش نیست.
+    </p>
+
+    <button onClick={() => setPicked(null)}>
+      بستن جزئیات
+    </button>
+  </div>
+)}
+
 
           <div className="table-wrap">
             <table>
