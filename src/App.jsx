@@ -587,40 +587,48 @@ export default function App() {
               </thead>
 
               <tbody>
-                {shown.map((coin, index) => (
-                  <tr key={coin.id}>
-                    <td>{index + 1}</td>
-                    <td>
-                      <button
-                        className="coin-name"
-                        onClick={() => selectAsset(coin)}
-                      >
-                        {coin.name} ({coin.symbol?.toUpperCase()})
-                      </button>
-                    </td>
-                    <td>${Number(coin.current_price || 0).toLocaleString()}</td>
-                    <td>
-                      {coin.price_change_percentage_24h == null
-                        ? '—'
-                        : `${Number(coin.price_change_percentage_24h).toFixed(2)}%`}
-                    </td>
-                    <td>{coin.market_cap == null ? '—' : `$${Number(coin.market_cap).toLocaleString()}`}</td>
-                    <td>
-                      <button
-                        onClick={() =>
-                          setFavorites((old) =>
-                            old.includes(coin.id)
-                              ? old.filter((id) => id !== coin.id)
-                              : [...old, coin.id]
-                          )
-                        }
-                      >
-                        {favorites.includes(coin.id) ? '★' : '☆'}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
+  {shown.map((coin, index) => (
+    <tr key={coin.id}>
+      <td>{index + 1}</td>
+      <td>
+        <button
+          className="coin-name"
+          onClick={() => selectAsset(coin)}
+        >
+          {coin.name} ({coin.symbol?.toUpperCase()})
+        </button>
+      </td>
+      <td>
+        ${Number(coin.current_price || 0).toLocaleString('en-US', {
+          maximumSignificantDigits: 8
+        })}
+      </td>
+      <td>
+        {coin.price_change_percentage_24h == null
+          ? '—'
+          : `${Number(coin.price_change_percentage_24h).toFixed(2)}%`}
+      </td>
+      <td>
+        {coin.market_cap == null
+          ? '—'
+          : `$${Number(coin.market_cap).toLocaleString()}`}
+      </td>
+      <td>
+        <button
+          onClick={() =>
+            setFavorites((old) =>
+              old.includes(coin.id)
+                ? old.filter((id) => id !== coin.id)
+                : [...old, coin.id]
+            )
+          }
+        >
+          {favorites.includes(coin.id) ? '★' : '☆'}
+        </button>
+      </td>
+    </tr>
+  ))}
+</tbody>
             </table>
           </div>
 
