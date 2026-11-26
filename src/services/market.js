@@ -30,11 +30,7 @@ function isAddress(value) {
 }
 
 function toNumber(value) {
-  if (
-    value === null ||
-    value === undefined ||
-    value === ''
-  ) {
+  if (value === null || value === undefined || value === '') {
     return null;
   }
 
@@ -135,7 +131,7 @@ function normalizeCoinGecko(coin) {
   };
 }
 
-// دریافت ۲۵۰ ارز در هر صفحه از CoinGecko
+// دریافت بازار از CoinGecko
 async function fetchCoinGeckoMarket(page = 1) {
   const safePage = Math.max(1, Number(page) || 1);
 
@@ -261,7 +257,7 @@ async function fetchBinanceMarket() {
   });
 }
 
-// حذف تکرار فقط بر اساس شناسه واقعی ارز
+// حذف تکرار بازار
 function removeMarketDuplicates(items) {
   const unique = new Map();
 
@@ -279,7 +275,6 @@ function removeMarketDuplicates(items) {
 }
 
 // دریافت بازار
-// صفحه اول تا ۲۵۰ ارز را دریافت می‌کند.
 export async function fetchMarketCoins(page = 1) {
   try {
     return await fetchCoinGeckoMarket(page);
@@ -336,7 +331,6 @@ async function searchCoinGecko(query) {
 
   let marketMap = new Map();
 
-  // تلاش برای دریافت قیمت همه نتایج
   try {
     const marketData = await getJSON(
       `${API}/coins/markets` +
@@ -352,7 +346,7 @@ async function searchCoinGecko(query) {
       );
     }
   } catch (error) {
-    // جستجوی توکن در DexScreener همچنان ادامه می‌یابد.
+    // نتایج جستجو بدون قیمت نیز قابل نمایش هستند.
   }
 
   return coins.map(coin => {
@@ -458,7 +452,6 @@ async function searchDexScreener(query) {
 }
 
 // حذف تکرار توکن‌ها
-// دو توکن با نماد یکسان ولی قرارداد متفاوت حذف نمی‌شوند.
 function removeDuplicates(items, query = '') {
   const unique = new Map();
 
@@ -569,15 +562,9 @@ async function fetchCoinGeckoDetails(asset) {
   );
 
   const market = data.market_data || {};
-
-  const price = market.current_price?.usd;
-
-  const high = market.high_24h?.usd;
-  const low = market.low_24h?.usd;
+  const links = data.links || {};
 
   const sparkline = market.sparkline_7d?.price;
-
-  const links = data.links || {};
 
   return {
     ...asset,
@@ -590,32 +577,53 @@ async function fetchCoinGeckoDetails(asset) {
       data.image?.small ||
       asset.image,
 
-    current_price: toNumber(price),
+    current_price:
+      toNumber(market.current_price?.usd) ??
+      asset.current_price ?? null,
 
-    market_cap: toNumber(market.market_cap?.usd),
+    market_cap:
+      toNumber(market.market_cap?.usd) ??
+      asset.market_cap ?? null,
 
     fully_diluted_valuation:
-      toNumber(market.fully_diluted_valuation?.usd),
+      toNumber(market.fully_diluted_valuation?.usd) ??
+      asset.fully_diluted_valuation ?? null,
 
-    total_volume: toNumber(market.total_volume?.usd),
+    total_volume:
+      toNumber(market.total_volume?.usd) ??
+      asset.total_volume ?? null,
 
     price_change_percentage_24h:
-      toNumber(market.price_change_percentage_24h),
+      toNumber(market.price_change_percentage_24h) ??
+      asset.price_change_percentage_24h ?? null,
 
-    high_24h: toNumber(high),
-    low_24h: toNumber(low),
+    high_24h:
+      toNumber(market.high_24h?.usd) ??
+      asset.high_24h ?? null,
 
-    ath: toNumber(market.ath?.usd),
-    atl: toNumber(market.atl?.usd),
+    low_24h:
+      toNumber(market.low_24h?.usd) ??
+      asset.low_24h ?? null,
+
+    ath:
+      toNumber(market.ath?.usd) ??
+      asset.ath ?? null,
+
+    atl:
+      toNumber(market.atl?.usd) ??
+      asset.atl ?? null,
 
     circulating_supply:
-      toNumber(market.circulating_supply),
+      toNumber(market.circulating_supply) ??
+      asset.circulating_supply ?? null,
 
     total_supply:
-      toNumber(market.total_supply),
+      toNumber(market.total_supply) ??
+      asset.total_supply ?? null,
 
     max_supply:
-      toNumber(market.max_supply),
+      toNumber(market.max_supply) ??
+      asset.max_supply ?? null,
 
     sparkline_in_7d:
       Array.isArray(sparkline)
@@ -623,16 +631,15 @@ async function fetchCoinGeckoDetails(asset) {
         : asset.sparkline_in_7d,
 
     market_cap_rank:
-      toNumber(data.market_cap_rank) ||
-      asset.market_cap_rank,
+      toNumber(data.market_cap_rank) ??
+      asset.market_cap_rank ?? null,
 
     homepage:
       Array.isArray(links.homepage)
         ? links.homepage.find(Boolean) || ''
         : '',
 
-    whitepaper:
-      links.whitepaper || '',
+    whitepaper: links.whitepaper || '',
 
     explorerUrl:
       links.blockchain_site?.find(Boolean) || '',
@@ -700,8 +707,8 @@ async function fetchDexDetails(asset) {
       toNumber(pair.liquidity?.usd) ??
       asset.liquidity,
 
-    high_24h: null,
-    low_24h: null,
+    high_24h: asset.high_24h ?? null,
+    low_24h: asset.low_24h ?? null,
 
     chainId: pair.chainId || asset.chainId,
     network: pair.chainId || asset.network,
@@ -724,7 +731,7 @@ async function fetchDexDetails(asset) {
     dataSource: 'DexScreener'
   };
 
-  // فقط برای قرارداد اصلی PEPE در اتریوم
+  // اطلاعات ۲۴ ساعته قرارداد اصلی PEPE
   if (
     address === PEPE_ETH_ADDRESS.toLowerCase() &&
     String(pair.chainId).toLowerCase() === 'ethereum'
@@ -735,16 +742,19 @@ async function fetchDexDetails(asset) {
       );
 
       if (Array.isArray(pepe) && pepe.length) {
-        updated.high_24h = toNumber(pepe[0].high_24h);
-        updated.low_24h = toNumber(pepe[0].low_24h);
+        updated.high_24h =
+          toNumber(pepe[0].high_24h) ?? updated.high_24h;
+
+        updated.low_24h =
+          toNumber(pepe[0].low_24h) ?? updated.low_24h;
       }
     } catch (error) {
-      // اگر اطلاعات واقعی در دسترس نباشد، خالی باقی می‌ماند.
+      // مقدار قبلی حفظ می‌شود.
     }
 
     if (
-      updated.high_24h === null ||
-      updated.low_24h === null
+      updated.high_24h == null ||
+      updated.low_24h == null
     ) {
       try {
         const ticker = await getJSON(
@@ -757,7 +767,7 @@ async function fetchDexDetails(asset) {
         updated.low_24h =
           updated.low_24h ?? toNumber(ticker.lowPrice);
       } catch (error) {
-        // هیچ مقدار ساختگی نمایش داده نمی‌شود.
+        // اطلاعات ساختگی نمایش داده نمی‌شود.
       }
     }
   }
@@ -775,7 +785,6 @@ export async function fetchCoinMarket(asset) {
     try {
       return await fetchCoinGeckoDetails(asset);
     } catch (error) {
-      // در صورت خطا، اطلاعات قبلی حفظ می‌شود.
       return asset;
     }
   }
@@ -791,7 +800,7 @@ export async function fetchCoinMarket(asset) {
   return asset;
 }
 
-// ابزار مرتب‌سازی بازار برای استفاده در رابط برنامه
+// مرتب‌سازی بازار
 export function sortMarketAssets(items, sortBy = 'market_cap') {
   const rows = [...(items || [])];
 
@@ -817,7 +826,7 @@ export function sortMarketAssets(items, sortBy = 'market_cap') {
   });
 }
 
-// جستجوی شبکه‌های شناخته‌شده برای نمایش نام
+// نام شبکه‌های شناخته‌شده
 export function getNetworkName(chainId) {
   const names = {
     ethereum: 'Ethereum',
