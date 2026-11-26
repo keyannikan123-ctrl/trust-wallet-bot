@@ -11,6 +11,7 @@ const PAGE_SIZE = 100;
 const DETAILS_CACHE_TTL_MS = 60 * 1000;
 const detailsCache = new Map();
 const detailsRequests = new Map();
+
 const EXPLORERS = {
   ethereum: 'https://etherscan.io/token/',
   bsc: 'https://bscscan.com/token/',
@@ -276,10 +277,17 @@ function removeMarketDuplicates(items) {
   return [...unique.values()];
 }
 
-// دریافت بازار
+// دریافت بازار و مشخص‌کردن منبع اطلاعات
 export async function fetchMarketCoins(page = 1) {
+  const addSource = (items, source) =>
+    items.map((item) => ({
+      ...item,
+      dataSource: source
+    }));
+
   try {
-    return await fetchCoinGeckoMarket(page);
+    const data = await fetchCoinGeckoMarket(page);
+    return addSource(data, 'CoinGecko');
   } catch (coinGeckoError) {
     if (Number(page) !== 1) {
       throw coinGeckoError;
@@ -290,13 +298,15 @@ export async function fetchMarketCoins(page = 1) {
     ];
 
     try {
-      return await fetchCoinCapMarket();
+      const data = await fetchCoinCapMarket();
+      return addSource(data, 'CoinCap');
     } catch (error) {
       errors.push(error?.message || 'CoinCap unavailable');
     }
 
     try {
-      return await fetchBinanceMarket();
+      const data = await fetchBinanceMarket();
+      return addSource(data, 'Binance');
     } catch (error) {
       errors.push(error?.message || 'Binance unavailable');
     }
@@ -565,14 +575,16 @@ async function fetchCoinGeckoDetails(asset) {
 
   const market = data.market_data || {};
   const links = data.links || {};
-const platforms = data.platforms || {};
+  const platforms = data.platforms || {};
 
-const contractEntry = Object.entries(platforms).find(
-  ([, address]) => typeof address === 'string' && address.trim()
-);
+  const contractEntry = Object.entries(platforms).find(
+    ([, address]) =>
+      typeof address === 'string' && address.trim()
+  );
 
-const contractChain = contractEntry?.[0] || '';
-const contractAddress = contractEntry?.[1] || '';
+  const contractChain = contractEntry?.[0] || '';
+  const contractAddress = contractEntry?.[1] || '';
+
   const sparkline = market.sparkline_7d?.price;
 
   return {
@@ -649,20 +661,21 @@ const contractAddress = contractEntry?.[1] || '';
         : '',
 
     whitepaper: links.whitepaper || '',
-chainId: contractChain || asset.chainId || '',
 
-network: contractChain
-  ? getNetworkName(contractChain)
-  : asset.network || '',
+    chainId: contractChain || asset.chainId || '',
 
-tokenAddress: contractAddress || asset.tokenAddress || '',
+    network: contractChain
+      ? getNetworkName(contractChain)
+      : asset.network || '',
 
-explorerUrl:
-  links.blockchain_site?.find(Boolean) ||
-  explorerUrl(contractChain, contractAddress) ||
-  asset.explorerUrl ||
-  '',
+    tokenAddress:
+      contractAddress || asset.tokenAddress || '',
 
+    explorerUrl:
+      links.blockchain_site?.find(Boolean) ||
+      explorerUrl(contractChain, contractAddress) ||
+      asset.explorerUrl ||
+      '',
 
     source: 'CoinGecko',
     dataSource: 'CoinGecko'
@@ -795,7 +808,6 @@ async function fetchDexDetails(asset) {
   return updated;
 }
 
-// دریافت جزئیات کامل ارز انتخاب‌شده
 // دریافت جزئیات ارز بدون حافظه موقت
 async function fetchCoinMarketUncached(asset) {
   if (asset.kind === 'coingecko') {
@@ -821,7 +833,10 @@ export async function fetchCoinMarket(asset) {
 
   const cached = detailsCache.get(cacheKey);
 
-  if (cached && Date.now() - cached.time < DETAILS_CACHE_TTL_MS) {
+  if (
+    cached &&
+    Date.now() - cached.time < DETAILS_CACHE_TTL_MS
+  ) {
     return { ...cached.data };
   }
 
@@ -832,10 +847,12 @@ export async function fetchCoinMarket(asset) {
   const request = (async () => {
     try {
       const data = await fetchCoinMarketUncached(asset);
+
       detailsCache.set(cacheKey, {
         time: Date.now(),
         data
       });
+
       return data;
     } catch (error) {
       return asset;
@@ -846,9 +863,9 @@ export async function fetchCoinMarket(asset) {
 
   detailsRequests.set(cacheKey, request);
   return request;
+}
 
-} 
-//مرتب‌سازی بازار
+// مرتب‌سازی بازار
 export function sortMarketAssets(items, sortBy = 'market_cap') {
   const rows = [...(items || [])];
 
