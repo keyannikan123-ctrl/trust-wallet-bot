@@ -1,4 +1,4 @@
-l
+
 import React, { useEffect, useMemo, useState } from 'react';
 import { useAppKit, useAppKitAccount, useAppKitNetwork } from '@reown/appkit/react';
 import { useBalance, useReadContract } from 'wagmi';
