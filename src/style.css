@@ -243,4 +243,68 @@ footer {
   .panel {
     padding: 13px;
   }
+
+}
+/* Live cryptocurrency ticker */
+
+
+.market-ticker {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  overflow-x: auto;
+  padding: 12px 14px;
+  margin: 12px 0;
+  border: 1px solid #345b78;
+  border-radius: 12px;
+  background: #10243b;
+  white-space: nowrap;
+  scrollbar-width: thin;
+}
+.market-ticker > strong {
+  color: #67d8c0;
+  flex: 0 0 auto;
+}
+.ticker-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex: 0 0 auto;
+  padding-inline: 10px;
+  border-inline-start: 1px solid #34506e;
+  direction: ltr;
+}
+.ticker-item b { color: #edf4ff; }
+.ticker-item small { font-size: 12px; }
+.ticker-item .positive { color: #52d6a0; }
+.ticker-item .negative { color: #ff8585; }
+.ticker-loading { color: #a9bfd7; font-size: 13px; }
+
+/* Advertising area */
+.ad-slot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 15px 18px;
+  margin: 12px 0 16px;
+  border: 1px dashed #66809a;
+  border-radius: 12px;
+  background: rgba(12, 27, 46, 0.7);
+}
+.ad-slot strong { color: #f0cc83; }
+.ad-slot p {
+  margin: 5px 0 0;
+  color: #a9bfd7;
+  font-size: 13px;
+}
+.ad-slot > span {
+  color: #a9bfd7;
+  font-size: 12px;
+}
+@media (max-width: 600px) {
+  .ad-slot { align-items: flex-start; }
+  .ad-slot > span { width: 100%; }
 }
