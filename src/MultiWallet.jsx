@@ -159,7 +159,8 @@ export default function MultiWallet() {
   }
 
   return (
-    <Panel title="مدیریت چند کیف پول">
+    <div className="panel">
+  <h2>مدیریت چند کیف پول</h2>
       <p className="muted">
         آدرس عمومی کیف پول را وارد کنید.
         برای مشاهده موجودی، نیازی به اتصال یا رمز کیف پول نیست.
@@ -227,6 +228,6 @@ export default function MultiWallet() {
             ? `آخرین بررسی: ${lastUpdate}`
             : ''}
       </p>
-    </Panel>
+    </div>
   );
 }
