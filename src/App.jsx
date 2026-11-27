@@ -41,10 +41,35 @@ export default function App() {
   const { open } = useAppKit();
   const { address, isConnected } = useAppKitAccount();
   const { chainId } = useAppKitNetwork();
+const [activeAddress, setActiveAddress] = useState(() => {
+  try {
+    return localStorage.getItem('ce-active-wallet') || '';
+  } catch {
+    return '';
+  }
+});
 
-  const enabled = Boolean(
-    isConnected && address && Number(chainId) === CHAIN_ID
-  );
+const selectedAddress = activeAddress || address || '';
+
+useEffect(() => {
+  if (!activeAddress && address) {
+    setActiveAddress(address);
+  }
+}, [address, activeAddress]);
+
+useEffect(() => {
+  try {
+    if (selectedAddress) {
+      localStorage.setItem('ce-active-wallet', selectedAddress);
+    } else {
+      localStorage.removeItem('ce-active-wallet');
+    }
+    } catch {}
+}, [selectedAddress]);
+
+
+const enabled = Boolean(selectedAddress);
+  
 
   const [tab, setTab] = useState('market');
   const [lang, setLang] = useState('fa');
@@ -169,7 +194,8 @@ export default function App() {
       };
 
   const bnb = useBalance({
-    address,
+  address: selectedAddress,
+    
     chainId: CHAIN_ID,
     query: { enabled, refetchInterval: REFRESH_MS },
   });
@@ -178,7 +204,7 @@ export default function App() {
     address: CONTRACTS.USDT,
     abi: erc20Abi,
     functionName: 'balanceOf',
-    args: address ? [address] : undefined,
+    args: selectedAddress ? [selectedAddress] : undefined,
     chainId: CHAIN_ID,
     query: { enabled, refetchInterval: REFRESH_MS },
   });
@@ -187,7 +213,7 @@ export default function App() {
     address: CONTRACTS.SGT,
     abi: erc20Abi,
     functionName: 'balanceOf',
-    args: address ? [address] : undefined,
+    args: selectedAddress ? [selectedAddress] : undefined,
     chainId: CHAIN_ID,
     query: { enabled, refetchInterval: REFRESH_MS },
   });
@@ -232,9 +258,9 @@ export default function App() {
   const owner = useReadContract({
     address: CONTRACTS.BANK,
     abi: bankAbi,
-    functionName: 'ownerInfo',
-    args: address ? [address] : undefined,
-    account: address,
+    functionName: 'ownerInfo',   
+account: selectedAddress,
+  args: selectedAddress ? [selectedAddress] : undefined,
     chainId: CHAIN_ID,
     query: { ...readOptions, enabled },
   });
@@ -246,7 +272,7 @@ export default function App() {
     abi: bankAbi,
     functionName: 'ownerBankInfo',
     args: accountId !== undefined ? [accountId] : undefined,
-    account: address,
+    account: selectedAddress, 
     chainId: CHAIN_ID,
     query: {
       ...readOptions,
@@ -258,7 +284,7 @@ export default function App() {
     address: CONTRACTS.PAY,
     abi: payAbi,
     functionName: 'ownerStatus',
-    args: address ? [address] : undefined,
+    args: selectedAddress ? [selectedAddress] : undefined,
     chainId: CHAIN_ID,
     query: { ...readOptions, enabled },
   });
@@ -267,7 +293,7 @@ export default function App() {
     address: CONTRACTS.PAY,
     abi: payAbi,
     functionName: 'ownerAllPoint',
-    args: address ? [address] : undefined,
+    args: selectedAddress ? [selectedAddress] : undefined,
     chainId: CHAIN_ID,
     query: { ...readOptions, enabled },
   });
@@ -276,7 +302,7 @@ export default function App() {
     address: CONTRACTS.PAY,
     abi: payAbi,
     functionName: 'lastRewardTimePassed',
-    args: address ? [address] : undefined,
+    args: selectedAddress ? [selectedAddress] : undefined,
     chainId: CHAIN_ID,
     query: { ...readOptions, enabled },
   });
@@ -883,8 +909,12 @@ export default function App() {
             </>
           )}
           
-<MultiWallet />
-          
+
+      <MultiWallet
+  connectedAddress={address}
+  activeAddress={selectedAddress}
+  onSelect={(nextAddress) => setActiveAddress(nextAddress)}
+/>    
           <div className="notice">{t.safe}</div>
         </Panel>
       )}
@@ -955,7 +985,7 @@ export default function App() {
           </Panel>
 
           <SmartGlobalActions
-            address={address}
+            address={selectedAddress}
             enabled={enabled}
             accountId={accountId}
             ownerData={owner.data}
