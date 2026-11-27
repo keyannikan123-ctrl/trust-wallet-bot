@@ -117,6 +117,7 @@ export default function App() {
         cap: 'ارزش بازار',
         alerts: 'هشدار قیمت',
       premium: 'امکانات ویژه',
+      assistant: 'دستیار هوشمند',
         target: 'قیمت هدف به دالر',
         add: 'افزودن',
         connect: 'اتصال کیف پول',
@@ -148,6 +149,7 @@ export default function App() {
         cap: 'Market cap',
         alerts: 'Price alerts',
     premium: 'Premium features',
+      assistant: 'AI Assistant',
         target: 'Target price USD',
         add: 'Add',
         connect: 'Connect wallet',
@@ -495,6 +497,7 @@ export default function App() {
           ['smart', t.smart],
           ['alerts', t.alerts],
       ['premium', t.premium],
+      ['assistant', t.assistant],
         ].map(([key, label]) => (
           <button
             key={key}
@@ -845,7 +848,15 @@ export default function App() {
           </p>
         </Panel>
       )}
-
+      {tab === 'assistant' && (
+        <Panel title={t.assistant}>
+          <h3>دستیار هوشمند کاوشگر</h3>
+          <p>سوالت را درباره ارزهای دیجیتال بنویس.</p>
+          <p className="notice">
+            این نسخه آزمایشی است و هنوز به هوش مصنوعی واقعی وصل نشده است.
+          </p>
+        </Panel>
+      )}
       {tab === 'wallet' && (
         <Panel title={t.wallet}>
           {!isConnected ? (
