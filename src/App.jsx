@@ -4,7 +4,7 @@ import { useAppKit, useAppKitAccount, useAppKitNetwork } from '@reown/appkit/rea
 import { useBalance, useReadContract } from 'wagmi';
 
 import SmartGlobalActions from './SmartGlobalActions';
-
+import MultiWallet from './MultiWallet';
 import { CHAIN_ID, CONTRACTS } from './contracts/addresses';
 import { erc20Abi, bankAbi, payAbi } from './contracts/abi';
 import { num, usd, tok, field, pct } from './utils/format';
@@ -882,7 +882,9 @@ export default function App() {
               </div>
             </>
           )}
-
+          
+<MultiWallet />
+          
           <div className="notice">{t.safe}</div>
         </Panel>
       )}
