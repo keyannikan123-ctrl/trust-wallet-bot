@@ -731,7 +731,6 @@ export default function App() {
           )}
         </Panel>
       )}
-
       {tab === 'favorites' && (
         <Panel title={t.favorites}>
           {coins
@@ -750,7 +749,18 @@ export default function App() {
         </Panel>
       )}
 
+      {tab === 'favorites' && (
+        <section className="ad-slot">
+          <div>
+            <strong>تبلیغات ویژه علاقه‌مندی‌ها</strong>
+            <p>معرفی خدمات و ابزارهای معتبر ارز دیجیتال</p>
+          </div>
+          <span>جایگاه تبلیغاتی برای همکاری</span>
+        </section>
+      )}
+
       {tab === 'alerts' && (
+      
         <Panel title={t.alerts}>
           <select
             value={alertCoin}
