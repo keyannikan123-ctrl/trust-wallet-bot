@@ -116,6 +116,7 @@ export default function App() {
         change: 'تغییر ۲۴ ساعته',
         cap: 'ارزش بازار',
         alerts: 'هشدار قیمت',
+      premium: 'امکانات ویژه',
         target: 'قیمت هدف به دالر',
         add: 'افزودن',
         connect: 'اتصال کیف پول',
@@ -146,6 +147,7 @@ export default function App() {
         change: '24h change',
         cap: 'Market cap',
         alerts: 'Price alerts',
+    premium: 'Premium features',
         target: 'Target price USD',
         add: 'Add',
         connect: 'Connect wallet',
@@ -492,6 +494,7 @@ export default function App() {
           ['wallet', t.wallet],
           ['smart', t.smart],
           ['alerts', t.alerts],
+      ['premium', t.premium],
         ].map(([key, label]) => (
           <button
             key={key}
@@ -816,6 +819,20 @@ export default function App() {
           })}
 
           <p className="muted">{t.alertNote}</p>
+        </Panel>
+      )}      {tab === 'premium' && (
+        <Panel title={t.premium}>
+          <h3>امکانات ویژه کاوشگر ارز دیجیتال</h3>
+          <p>امکانات پیشرفته برای بررسی بازار و مدیریت ارزها.</p>
+          <ul>
+            <li>هشدارهای پیشرفته قیمت</li>
+            <li>تحلیل پیشرفته سبد ارزها</li>
+            <li>ابزارهای بیشتر بررسی بازار</li>
+            <li>نمایش بدون تبلیغات</li>
+          </ul>
+          <p className="notice">
+            این امکانات هنوز فعال نشده‌اند. فعلاً هیچ اشتراک یا پرداختی وجود ندارد و هیچ پولی از کاربران گرفته نمی‌شود.
+          </p>
         </Panel>
       )}
 
